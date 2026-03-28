@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/animated_error_dialog.dart';
 import '../../widgets/language_switcher.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,36 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.lastError.isNotEmpty) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: AppColors.alertHigh),
+                const SizedBox(width: 8),
+                Text(AppLocalizations.of(context).t('error')),
+              ],
+            ),
+            content: Text(auth.lastError),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('OK', style: TextStyle(color: AppColors.primaryGreen)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -141,17 +172,37 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                             decoration: InputDecoration(
                               hintText: l10n.t('phone_hint'),
-                              prefixIcon: const Icon(Icons.phone_outlined),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🇻🇳', style: TextStyle(fontSize: 20)),
+                                    const SizedBox(width: 8),
+                                    Text('+84', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+                                    const SizedBox(width: 8),
+                                    Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.3)),
+                                    const SizedBox(width: 8),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
                           AppButton(
                             text: l10n.t('send_otp'),
                             isLoading: auth.isLoading,
-                            onPressed: () {
+                            onPressed: () async {
                               final phone = _phoneController.text.trim();
                               if (phone.isNotEmpty) {
-                                auth.sendOtp(phone);
+                                await auth.sendOtp(phone);
+                                if (auth.lastError.isNotEmpty && context.mounted) {
+                                  AnimatedErrorDialog.show(
+                                    context, 
+                                    title: "Lỗi đăng nhập", 
+                                    message: auth.lastError,
+                                  );
+                                }
                               }
                             },
                           ),

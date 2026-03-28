@@ -1,18 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/area.dart';
 import '../models/area_config.dart';
 import '../models/sensor_reading.dart';
-import '../data/mock_data.dart';
+import '../models/sensor.dart';
+import '../models/device.dart';
+import 'auth_provider.dart';
 
 class GardenProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Area> _areas = [];
   bool _isLoading = true;
+  String? _uid;
+  StreamSubscription? _areasSubscription;
   Timer? _timerCheckTimer;
-
-  // Cache sensor history per area to avoid regenerating
-  // In production, this would be fetched from Firebase
-  final Map<String, SensorHistory> _sensorHistoryCache = {};
 
   List<Area> get areas => _areas;
   bool get isLoading => _isLoading;
@@ -22,7 +24,6 @@ class GardenProvider extends ChangeNotifier {
       _areas.fold<int>(0, (sum, area) => sum + area.activeDeviceCount);
 
   GardenProvider() {
-    loadData();
     // Check timers every second
     _timerCheckTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -33,18 +34,108 @@ class GardenProvider extends ChangeNotifier {
   @override
   void dispose() {
     _timerCheckTimer?.cancel();
+    _areasSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> loadData() async {
+  void updateAuth(AuthProvider auth) {
+    final newUid = auth.uid;
+    if (_uid == newUid) return;
+    
+    _uid = newUid;
+    _areasSubscription?.cancel();
+    
+    if (_uid == null) {
+      _areas = [];
+      _isLoading = false;
+      notifyListeners();
+    } else {
+      _listenToAreas();
+    }
+  }
+
+  void _listenToAreas() {
     _isLoading = true;
     notifyListeners();
 
-    // Removed artificial delay
+    _areasSubscription = _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('areas')
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .listen((snapshot) {
+      final List<Area> updatedAreas = [];
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final area = Area.fromMap(doc.id, data);
+          
+          // Fallback: If area has no devices (old data), add some defaults
+          if (area.devices.isEmpty) {
+            area.devices.addAll([
+              Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
+              Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
+            ]);
+            // Optionally update Firestore here, but for now just show in UI
+          }
+          
+          updatedAreas.add(area);
+        } catch (e) {
+          debugPrint('Error parsing area ${doc.id}: $e');
+        }
+      }
+      _areas = updatedAreas;
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint('Error listening to areas: $e');
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
 
-    _areas = MockData.getAreas();
-    _isLoading = false;
-    notifyListeners();
+  Future<void> addArea(String name) async {
+    if (_uid == null) return;
+    
+    try {
+      final newArea = Area(
+        id: '', // Firestore will generate
+        name: name,
+        sensors: [
+          Sensor(id: 'temp', type: 'temperature', value: 25.0, unit: '°C'),
+          Sensor(id: 'humi', type: 'air_humidity', value: 60.0, unit: '%'),
+          Sensor(id: 'soil', type: 'soil_moisture', value: 45.0, unit: '%'),
+        ],
+        devices: [
+          Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
+          Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
+        ],
+        createdAt: DateTime.now(),
+      );
+
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .add(newArea.toMap());
+    } catch (e) {
+      debugPrint('Error adding area: $e');
+    }
+  }
+
+  Future<void> deleteArea(String areaId) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(areaId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting area: $e');
+    }
   }
 
   Area? getArea(String id) {
@@ -55,48 +146,70 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
-  /// Get 24h sensor history for an area.
-  /// In production, replace with Firebase Firestore query:
-  /// ```dart
-  /// final snapshot = await FirebaseFirestore.instance
-  ///   .collection('areas/$areaId/sensor_history')
-  ///   .where('timestamp', isGreaterThan: cutoff.millisecondsSinceEpoch)
-  ///   .orderBy('timestamp')
-  ///   .get();
-  /// ```
-  SensorHistory getSensorHistory(String areaId) {
-    if (!_sensorHistoryCache.containsKey(areaId)) {
-      _sensorHistoryCache[areaId] = MockData.getSensorHistory(areaId);
-    }
-    return _sensorHistoryCache[areaId]!;
+  /// Get 24h sensor history for an area from Firestore.
+  Stream<List<SensorReading>> getSensorHistoryStream(String areaId, String sensorType) {
+    if (_uid == null) return const Stream.empty();
+    
+    final cutoff = DateTime.now().subtract(const Duration(hours: 25)).millisecondsSinceEpoch;
+    
+    return _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('areas')
+        .doc(areaId)
+        .collection('history')
+        .where('type', isEqualTo: sensorType)
+        .where('timestamp', isGreaterThan: cutoff)
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => SensorReading.fromMap(doc.data()))
+            .toList());
   }
 
-  void toggleAreaMode(String areaId) {
+  void toggleAreaMode(String areaId) async {
+    if (_uid == null) return;
     final index = _areas.indexWhere((a) => a.id == areaId);
     if (index != -1) {
-      _areas[index].isAutoMode = !_areas[index].isAutoMode;
-      // Clear all timers when switching to auto mode
-      if (_areas[index].isAutoMode) {
-        for (final device in _areas[index].devices) {
-          device.clearTimer();
-        }
+      final newMode = !_areas[index].isAutoMode;
+      
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({'isAutoMode': newMode});
+      } catch (e) {
+        debugPrint('Error toggling area mode: $e');
       }
-      notifyListeners();
     }
   }
 
-  void toggleDevice(String areaId, String deviceId) {
+  void toggleDevice(String areaId, String deviceId) async {
+    if (_uid == null) return;
     final areaIndex = _areas.indexWhere((a) => a.id == areaId);
     if (areaIndex != -1) {
       final area = _areas[areaIndex];
-      // Only allow toggle in manual mode
       if (!area.isAutoMode) {
         final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
         if (deviceIndex != -1) {
-          area.devices[deviceIndex].isOn = !area.devices[deviceIndex].isOn;
-          // Clear timer when manually toggling
-          area.devices[deviceIndex].clearTimer();
-          notifyListeners();
+          final device = area.devices[deviceIndex];
+          device.isOn = !device.isOn;
+          device.clearTimer();
+          
+          try {
+            await _firestore
+                .collection('users')
+                .doc(_uid)
+                .collection('areas')
+                .doc(areaId)
+                .update({
+              'devices': area.devices.map((d) => d.toMap()).toList()
+            });
+          } catch (e) {
+            debugPrint('Error toggling device: $e');
+          }
         }
       }
     }
@@ -105,7 +218,8 @@ class GardenProvider extends ChangeNotifier {
   /// Set a timer on a device. When the timer expires, the device will toggle.
   /// In production, this would write to Firebase and use Cloud Functions
   /// for server-side timer execution.
-  void setDeviceTimer(String areaId, String deviceId, Duration duration) {
+  void setDeviceTimer(String areaId, String deviceId, Duration duration) async {
+    if (_uid == null) return;
     final areaIndex = _areas.indexWhere((a) => a.id == areaId);
     if (areaIndex != -1) {
       final area = _areas[areaIndex];
@@ -113,21 +227,45 @@ class GardenProvider extends ChangeNotifier {
         final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
         if (deviceIndex != -1) {
           area.devices[deviceIndex].setTimer(duration);
-          notifyListeners();
+          
+          try {
+            await _firestore
+                .collection('users')
+                .doc(_uid)
+                .collection('areas')
+                .doc(areaId)
+                .update({
+              'devices': area.devices.map((d) => d.toMap()).toList()
+            });
+          } catch (e) {
+            debugPrint('Error setting device timer: $e');
+          }
         }
       }
     }
   }
 
-  /// Cancel an active timer on a device.
-  void cancelDeviceTimer(String areaId, String deviceId) {
+  void cancelDeviceTimer(String areaId, String deviceId) async {
+    if (_uid == null) return;
     final areaIndex = _areas.indexWhere((a) => a.id == areaId);
     if (areaIndex != -1) {
-      final deviceIndex =
-          _areas[areaIndex].devices.indexWhere((d) => d.id == deviceId);
+      final area = _areas[areaIndex];
+      final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
       if (deviceIndex != -1) {
-        _areas[areaIndex].devices[deviceIndex].clearTimer();
-        notifyListeners();
+        area.devices[deviceIndex].clearTimer();
+        
+        try {
+          await _firestore
+              .collection('users')
+              .doc(_uid)
+              .collection('areas')
+              .doc(areaId)
+              .update({
+            'devices': area.devices.map((d) => d.toMap()).toList()
+          });
+        } catch (e) {
+          debugPrint('Error cancelling device timer: $e');
+        }
       }
     }
   }
@@ -153,25 +291,80 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
-  /// Update the display name of a garden area.
-  /// In production, write to Firebase:
-  ///   DatabaseReference.child('zones/${areaId}/name').set(newName)
-  void updateAreaName(String areaId, String newName) {
-    final index = _areas.indexWhere((a) => a.id == areaId);
-    if (index != -1) {
-      _areas[index].name = newName.trim();
-      notifyListeners();
+  void updateAreaName(String areaId, String newName) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(areaId)
+          .update({'name': newName.trim()});
+    } catch (e) {
+      debugPrint('Error updating area name: $e');
     }
   }
 
-  /// Update the automation config of a garden area.
-  /// In production, write to Firebase:
-  ///   DatabaseReference.child('zones/${areaId}/configs').update(config.toMap())
-  void updateAreaConfig(String areaId, AreaConfig newConfig) {
-    final index = _areas.indexWhere((a) => a.id == areaId);
-    if (index != -1) {
-      _areas[index].config = newConfig;
-      notifyListeners();
+  void updateAreaConfig(String areaId, AreaConfig newConfig) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(areaId)
+          .update({'config': newConfig.toMap()});
+    } catch (e) {
+      debugPrint('Error updating area config: $e');
+    }
+  }
+
+  void addDevice(String areaId, String name, String type) async {
+    if (_uid == null) return;
+    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
+    if (areaIndex != -1) {
+      final area = _areas[areaIndex];
+      final newDevice = Device(
+        id: 'dev_${DateTime.now().millisecondsSinceEpoch}',
+        name: name,
+        type: type,
+      );
+      area.devices.add(newDevice);
+      
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({
+          'devices': area.devices.map((d) => d.toMap()).toList()
+        });
+      } catch (e) {
+        debugPrint('Error adding device: $e');
+      }
+    }
+  }
+
+  void deleteDevice(String areaId, String deviceId) async {
+    if (_uid == null) return;
+    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
+    if (areaIndex != -1) {
+      final area = _areas[areaIndex];
+      area.devices.removeWhere((d) => d.id == deviceId);
+      
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({
+          'devices': area.devices.map((d) => d.toMap()).toList()
+        });
+      } catch (e) {
+        debugPrint('Error deleting device: $e');
+      }
     }
   }
 }

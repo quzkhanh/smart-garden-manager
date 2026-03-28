@@ -19,6 +19,15 @@ dependencies:
   percent_indicator: ^4.2.3
   qr_flutter: ^4.1.0
   fl_chart: ^0.70.2
+  firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  cloud_firestore: ^6.2.0
+  crypto: ^3.0.6
+  mobile_scanner: ^6.0.2
+  device_info_plus: ^12.3.0
+  shared_preferences: ^2.5.5
+  uuid: ^4.5.3
+  pinput: ^6.0.2
 
 dev_dependencies:
   flutter_test:

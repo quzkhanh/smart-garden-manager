@@ -34,4 +34,25 @@ class Sensor {
       unit: unit ?? this.unit,
     );
   }
+
+  factory Sensor.fromMap(String id, Map<String, dynamic> map) {
+    return Sensor(
+      id: id,
+      type: map['type'] as String? ?? 'temperature',
+      value: (map['value'] as num?)?.toDouble() ?? 0.0,
+      minValue: (map['minValue'] as num?)?.toDouble() ?? 0.0,
+      maxValue: (map['maxValue'] as num?)?.toDouble() ?? 100.0,
+      unit: map['unit'] as String? ?? '%',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type,
+      'value': value,
+      'minValue': minValue,
+      'maxValue': maxValue,
+      'unit': unit,
+    };
+  }
 }

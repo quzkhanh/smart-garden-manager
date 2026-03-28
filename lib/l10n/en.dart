@@ -17,6 +17,21 @@ const Map<String, String> en = {
   'qr_scan_instruction': 'Scan this code with a logged-in device',
   'waiting_approval': 'Waiting for approval...',
   'qr_expires': 'Code expires in',
+  'qr_expired': 'QR code has expired',
+  'regenerate_qr': 'Generate new code',
+  'approving': 'Authenticating...',
+  'otp_invalid': 'Invalid or expired OTP code!',
+
+  // QR Scanner (logged-in device)
+  'scan_qr_login': 'Scan QR to login',
+  'scan_qr_instruction': 'Scan QR code to login',
+  'scan_qr_description': 'Point the camera at the QR code on the device you want to log in',
+  'approving_login': 'Approving login...',
+  'login_approved': 'Approved!',
+  'login_approved_desc': 'The other device is being logged in...',
+  'qr_invalid': 'Invalid QR code for Smart Garden',
+  'qr_session_not_found': 'Login session not found',
+  'qr_session_expired': 'Login session has expired or already approved',
 
   // Home
   'my_garden': 'My Garden',
@@ -27,6 +42,16 @@ const Map<String, String> en = {
   'view_details': 'View details',
   'auto_mode': 'Auto',
   'manual_mode': 'Manual',
+  'add_area': 'Add Area',
+  'no_areas': 'No areas yet',
+  'no_areas_desc': 'Start setting up your garden by adding your first area.',
+  'area_name_required': 'Please enter area name',
+  'cancel': 'Cancel',
+  'confirm': 'Confirm',
+  'add_device': 'Add Device',
+  'device_name': 'Device Name',
+  'device_type': 'Device Type',
+  'no_devices': 'No devices yet',
 
   // Area Detail
   'area_detail': 'Area Details',
@@ -38,6 +63,7 @@ const Map<String, String> en = {
   'air_humidity': 'Air Humidity',
   'soil_moisture': 'Soil Moisture',
   'chart_24h': '24h Chart',
+
   // Area Config
   'area_name': 'Area Name',
   'area_name_hint': 'Enter area name',
@@ -108,8 +134,6 @@ const Map<String, String> en = {
   'system_mode': 'System',
   'logout': 'Logout',
   'logout_confirm': 'Are you sure you want to logout?',
-  'confirm': 'Confirm',
-  'cancel': 'Cancel',
 
   // Navigation
   'home': 'Home',
@@ -118,7 +142,6 @@ const Map<String, String> en = {
 
   // Empty states
   'no_alerts': 'No alerts',
-  'no_devices': 'No devices yet',
 
   // Misc
   'loading': 'Loading...',

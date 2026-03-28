@@ -8,6 +8,7 @@ import '../../widgets/common/app_card.dart';
 import '../../widgets/common/loading_skeleton.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../models/logged_device.dart';
+import 'qr_scanner_screen.dart';
 
 class DevicesScreen extends StatelessWidget {
   const DevicesScreen({super.key});
@@ -30,45 +31,76 @@ class DevicesScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                     child: Text(
                       l10n.t('logged_devices'),
-                      style: theme.textTheme.headlineLarge,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ).animate().fadeIn(duration: 400.ms),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                     child: Text(
                       '${deviceProvider.deviceCount} ${l10n.t('device_count')}',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
 
-                  // Device list
+                  // QR Scan button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const QrScannerScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      label: Text(l10n.t('scan_qr_login')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+                        foregroundColor: AppColors.primaryGreen,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+
                   Expanded(
                     child: deviceProvider.devices.isEmpty
                         ? EmptyState(
                             icon: Icons.devices_rounded,
                             title: l10n.t('no_devices'),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: deviceProvider.devices.length,
-                            itemBuilder: (context, index) {
-                              final device = deviceProvider.devices[index];
-                              return _DeviceCard(
-                                device: device,
-                                onLogout: () =>
-                                    deviceProvider.logoutDevice(device.id),
-                                onRename: () => _showRenameDialog(
-                                  context,
-                                  device,
-                                  deviceProvider,
-                                  l10n,
-                                ),
-                              ).animate().fadeIn(
-                                    delay: Duration(
-                                        milliseconds: 200 + index * 80),
-                                    duration: 400.ms,
-                                  );
-                            },
+                        : RefreshIndicator(
+                            onRefresh: deviceProvider.refreshDevices,
+                            color: AppColors.primaryGreen,
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              itemCount: deviceProvider.devices.length,
+                              itemBuilder: (context, index) {
+                                final device = deviceProvider.devices[index];
+                                return _DeviceCard(
+                                  device: device,
+                                  onLogout: () =>
+                                      deviceProvider.logoutDevice(device.id),
+                                  onRename: () => _showRenameDialog(
+                                    context,
+                                    device,
+                                    deviceProvider,
+                                    l10n,
+                                  ),
+                                ).animate().fadeIn(
+                                      delay: Duration(
+                                          milliseconds: 200 + index * 80),
+                                      duration: 400.ms,
+                                    );
+                              },
+                            ),
                           ),
                   ),
                 ],

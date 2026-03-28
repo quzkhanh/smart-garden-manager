@@ -32,9 +32,19 @@ class _SmartGardenAppState extends State<SmartGardenApp> {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => GardenProvider()),
-        ChangeNotifierProvider(create: (_) => AlertProvider()),
-        ChangeNotifierProvider(create: (_) => DeviceProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, GardenProvider>(
+          create: (_) => GardenProvider(),
+          update: (_, auth, prev) => prev!..updateAuth(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, AlertProvider>(
+          create: (_) => AlertProvider(),
+          update: (_, auth, prev) => prev!..updateAuth(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, DeviceProvider>(
+          create: (_) => DeviceProvider(),
+          update: (_, auth, prev) => prev!..updateAuth(auth),
+        ),
+        // Settings and Locale providers already watch Auth if needed or are independent
       ],
       child: MaterialApp.router(
         title: 'Smart Garden',

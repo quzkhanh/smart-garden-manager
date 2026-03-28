@@ -66,12 +66,12 @@ class Device {
   /// Create from Firestore document
   factory Device.fromMap(Map<String, dynamic> map) {
     return Device(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      type: map['type'] as String,
+      id: map['id']?.toString() ?? 'dev_${DateTime.now().millisecondsSinceEpoch}',
+      name: map['name']?.toString() ?? 'Unnamed Device',
+      type: map['type']?.toString() ?? 'other',
       isOn: map['isOn'] as bool? ?? false,
       timerEndTime: map['timerEndTime'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['timerEndTime'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch((map['timerEndTime'] as num).toInt())
           : null,
     );
   }

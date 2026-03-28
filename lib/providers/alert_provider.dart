@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/alert.dart';
-import '../data/mock_data.dart';
+import 'auth_provider.dart';
 
 enum AlertFilter { all, unread, read }
 
 class AlertProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Alert> _alerts = [];
   AlertFilter _filter = AlertFilter.all;
   bool _isLoading = true;
+  String? _uid;
+  StreamSubscription? _subscription;
 
   List<Alert> get alerts => _filteredAlerts;
   List<Alert> get allAlerts => _alerts;
@@ -27,19 +32,49 @@ class AlertProvider extends ChangeNotifier {
     }
   }
 
-  AlertProvider() {
-    loadData();
+  AlertProvider();
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
-  Future<void> loadData() async {
+  void updateAuth(AuthProvider auth) {
+    final newUid = auth.uid;
+    if (_uid == newUid) return;
+    
+    _uid = newUid;
+    _subscription?.cancel();
+    
+    if (_uid == null) {
+      _alerts = [];
+      _isLoading = false;
+      notifyListeners();
+    } else {
+      _listenToAlerts();
+    }
+  }
+
+  void _listenToAlerts() {
     _isLoading = true;
     notifyListeners();
 
-    // Removed artificial delay
-
-    _alerts = MockData.getAlerts();
-    _isLoading = false;
-    notifyListeners();
+    _subscription = _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('alerts')
+        .orderBy('time', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      _alerts = snapshot.docs.map((doc) => Alert.fromMap(doc.id, doc.data())).toList();
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint('Error listening to alerts: $e');
+      _isLoading = false;
+      notifyListeners();
+    });
   }
 
   void setFilter(AlertFilter filter) {
@@ -47,30 +82,71 @@ class AlertProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markAsRead(String alertId) {
-    final index = _alerts.indexWhere((a) => a.id == alertId);
-    if (index != -1) {
-      _alerts[index].isRead = true;
-      notifyListeners();
+  void markAsRead(String alertId) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('alerts')
+          .doc(alertId)
+          .update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marking alert as read: $e');
     }
   }
 
-  void markAllAsRead() {
-    for (var alert in _alerts) {
-      alert.isRead = true;
+  void markAllAsRead() async {
+    if (_uid == null) return;
+    final batch = _firestore.batch();
+    for (var alert in _alerts.where((a) => !a.isRead)) {
+      final ref = _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('alerts')
+          .doc(alert.id);
+      batch.update(ref, {'isRead': true});
     }
-    notifyListeners();
+    
+    try {
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Error marking all alerts as read: $e');
+    }
   }
 
   /// Delete a single alert by id.
-  void deleteAlert(String alertId) {
-    _alerts.removeWhere((a) => a.id == alertId);
-    notifyListeners();
+  void deleteAlert(String alertId) async {
+    if (_uid == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('alerts')
+          .doc(alertId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting alert: $e');
+    }
   }
 
   /// Delete all alerts that have been read.
-  void deleteReadAlerts() {
-    _alerts.removeWhere((a) => a.isRead);
-    notifyListeners();
+  void deleteReadAlerts() async {
+    if (_uid == null) return;
+    final batch = _firestore.batch();
+    for (var alert in _alerts.where((a) => a.isRead)) {
+      final ref = _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('alerts')
+          .doc(alert.id);
+      batch.delete(ref);
+    }
+    
+    try {
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Error deleting read alerts: $e');
+    }
   }
 }

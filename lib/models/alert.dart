@@ -34,4 +34,28 @@ class Alert {
       isRead: isRead ?? this.isRead,
     );
   }
+
+  factory Alert.fromMap(String id, Map<String, dynamic> map) {
+    return Alert(
+      id: id,
+      areaName: map['areaName'] as String? ?? 'Vườn',
+      message: map['message'] as String? ?? '',
+      time: DateTime.fromMillisecondsSinceEpoch(map['time'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+      severity: AlertSeverity.values.firstWhere(
+        (e) => e.name == (map['severity'] as String?),
+        orElse: () => AlertSeverity.medium,
+      ),
+      isRead: map['isRead'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'areaName': areaName,
+      'message': message,
+      'time': time.millisecondsSinceEpoch,
+      'severity': severity.name,
+      'isRead': isRead,
+    };
+  }
 }

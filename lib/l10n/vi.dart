@@ -17,6 +17,21 @@ const Map<String, String> vi = {
   'qr_scan_instruction': 'Quét mã này bằng thiết bị đã đăng nhập',
   'waiting_approval': 'Đang chờ xác nhận...',
   'qr_expires': 'Mã hết hạn sau',
+  'qr_expired': 'Mã QR đã hết hạn',
+  'regenerate_qr': 'Tạo mã mới',
+  'approving': 'Đang xác thực...',
+  'otp_invalid': 'Mã OTP không hợp lệ hoặc đã hết hạn!',
+
+  // QR Scanner (logged-in device)
+  'scan_qr_login': 'Quét QR đăng nhập',
+  'scan_qr_instruction': 'Quét mã QR để đăng nhập',
+  'scan_qr_description': 'Hướng camera vào mã QR trên thiết bị muốn đăng nhập',
+  'approving_login': 'Đang phê duyệt đăng nhập...',
+  'login_approved': 'Đã phê duyệt!',
+  'login_approved_desc': 'Thiết bị kia đang được đăng nhập...',
+  'qr_invalid': 'Mã QR không hợp lệ cho Smart Garden',
+  'qr_session_not_found': 'Phiên đăng nhập không tồn tại',
+  'qr_session_expired': 'Phiên đăng nhập đã hết hạn hoặc đã được duyệt',
 
   // Home
   'my_garden': 'Vườn của tôi',
@@ -27,6 +42,16 @@ const Map<String, String> vi = {
   'view_details': 'Xem chi tiết',
   'auto_mode': 'Tự động',
   'manual_mode': 'Thủ công',
+  'add_area': 'Thêm khu vực',
+  'no_areas': 'Chưa có khu vực nào',
+  'no_areas_desc': 'Bắt đầu thiết lập khu vườn của bạn bằng cách thêm khu vực đầu tiên.',
+  'area_name_required': 'Vui lòng nhập tên khu vực',
+  'cancel': 'Hủy',
+  'confirm': 'Xác nhận',
+  'add_device': 'Thêm thiết bị',
+  'device_name': 'Tên thiết bị',
+  'device_type': 'Loại thiết bị',
+  'no_devices': 'Chưa có thiết bị nào',
 
   // Area Detail
   'area_detail': 'Chi tiết khu vực',
@@ -38,6 +63,7 @@ const Map<String, String> vi = {
   'air_humidity': 'Độ ẩm không khí',
   'soil_moisture': 'Độ ẩm đất',
   'chart_24h': 'Biểu đồ 24h',
+
   // Area Config
   'area_name': 'Tên khu vực',
   'area_name_hint': 'Nhập tên khu vực',
@@ -108,8 +134,6 @@ const Map<String, String> vi = {
   'system_mode': 'Theo hệ thống',
   'logout': 'Đăng xuất',
   'logout_confirm': 'Bạn có chắc muốn đăng xuất?',
-  'confirm': 'Xác nhận',
-  'cancel': 'Hủy',
 
   // Navigation
   'home': 'Trang chủ',
@@ -118,7 +142,6 @@ const Map<String, String> vi = {
 
   // Empty states
   'no_alerts': 'Không có cảnh báo nào',
-  'no_devices': 'Chưa có thiết bị nào',
 
   // Misc
   'loading': 'Đang tải...',
@@ -133,7 +156,7 @@ const Map<String, String> vi = {
   'start_timer': 'Bắt đầu',
   'cancel_timer': 'Hủy hẹn giờ',
   'timer_remaining': 'Còn lại',
-  'quick_presets': 'Chọn nhanh',
+  'quick_presets': 'Thiết lập nhanh',
   'custom_time': 'Tùy chỉnh',
   'hours_short': 'giờ',
   'minutes_short': 'phút',

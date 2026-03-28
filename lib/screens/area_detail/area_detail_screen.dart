@@ -9,6 +9,8 @@ import '../../widgets/sensor_bar.dart';
 import '../../widgets/device_tile.dart';
 import '../../widgets/sensor_chart.dart';
 import '../../widgets/common/app_card.dart';
+import '../../widgets/common/add_device_dialog.dart';
+import '../../widgets/device/timer_picker_dialog.dart';
 
 class AreaDetailScreen extends StatelessWidget {
   final String areaId;
@@ -32,8 +34,8 @@ class AreaDetailScreen extends StatelessWidget {
       );
     }
 
-    // Get chart data
-    final sensorHistory = garden.getSensorHistory(areaId);
+    // Sensor chart will handle its own real-time stream via areaId
+    // final sensorHistory = garden.getSensorHistory(areaId);
 
     final content = [
       // Mode toggle section
@@ -98,8 +100,6 @@ class AreaDetailScreen extends StatelessWidget {
           ],
         ),
       ).animate().fadeIn(duration: 400.ms),
-      const SizedBox(height: 4),
-
       // Sensor data section
       AppCard(
         child: Column(
@@ -119,13 +119,11 @@ class AreaDetailScreen extends StatelessWidget {
           ],
         ),
       ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
-      const SizedBox(height: 4),
 
       // 24h Chart section
       SensorChartCard(
-        history: sensorHistory,
+        areaId: areaId,
       ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
-      const SizedBox(height: 4),
 
       // Device control section
       AppCard(
@@ -136,9 +134,29 @@ class AreaDetailScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    l10n.t('device_control'),
-                    style: theme.textTheme.titleMedium,
+                  child: Row(
+                    children: [
+                      Text(
+                        l10n.t('device_control'),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () async {
+                          final result = await showDialog<Map<String, dynamic>>(
+                            context: context,
+                            builder: (ctx) => const AddDeviceDialog(),
+                          );
+                          if (result != null) {
+                            garden.addDevice(areaId, result['name'], result['type']);
+                          }
+                        },
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                        color: AppColors.primaryGreen,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
                 ),
                 if (area.isAutoMode)
@@ -169,6 +187,7 @@ class AreaDetailScreen extends StatelessWidget {
                   onTimerTap: () => _showTimerDialog(context, garden, device.id),
                   onCancelTimer: () =>
                       garden.cancelDeviceTimer(areaId, device.id),
+                  onDelete: () => _confirmDeleteDevice(context, garden, device.id),
                 )),
           ],
         ),
@@ -201,25 +220,31 @@ class AreaDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              tooltip: l10n.t('area_config'),
-              icon: Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.18 : 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.tune_rounded,
-                  size: 20,
-                  color: AppColors.primaryGreen,
-                ),
+          IconButton(
+            tooltip: l10n.t('area_config'),
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.18 : 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              onPressed: () => context.push('/area/${areaId}/config'),
+              child: const Icon(
+                Icons.tune_rounded,
+                size: 20,
+                color: AppColors.primaryGreen,
+              ),
             ),
+            onPressed: () => context.push('/area/${areaId}/config'),
           ),
+          IconButton(
+            tooltip: 'Xóa khu vực',
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.red.shade400,
+            ),
+            onPressed: () => _confirmDeleteArea(context, garden),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
@@ -230,20 +255,27 @@ class AreaDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 1,
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            content[0], content[1], content[2],
-                            content[3], content[4],
+                            content[0], // Mode
+                            const SizedBox(height: 16),
+                            content[1], // Sensor data
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 20),
                     Expanded(
+                      flex: 2,
                       child: SingleChildScrollView(
                         child: Column(
-                          children: [content[5], content[6]],
+                          children: [
+                            content[2], // Chart
+                            const SizedBox(height: 16),
+                            content[3], // Device control
+                          ],
                         ),
                       ),
                     ),
@@ -252,7 +284,15 @@ class AreaDetailScreen extends StatelessWidget {
               )
             : ListView(
                 padding: const EdgeInsets.all(20),
-                children: content,
+                children: [
+                  content[0],
+                  const SizedBox(height: 12),
+                  content[1],
+                  const SizedBox(height: 12),
+                  content[2],
+                  const SizedBox(height: 12),
+                  content[3],
+                ],
               ),
       ),
     );
@@ -267,5 +307,61 @@ class AreaDetailScreen extends StatelessWidget {
     if (duration != null) {
       garden.setDeviceTimer(areaId, deviceId, duration);
     }
+  }
+
+  void _confirmDeleteArea(BuildContext context, GardenProvider garden) {
+    _showConfirmDialog(
+      context,
+      title: 'Xóa khu vực?',
+      message: 'Hành động này không thể hoàn tác. Toàn bộ thiết bị và dữ liệu khu vực sẽ bị xóa vĩnh viễn.',
+      onConfirm: () {
+        garden.deleteArea(areaId);
+        context.pop(); // Go back to home
+      },
+    );
+  }
+
+  void _confirmDeleteDevice(BuildContext context, GardenProvider garden, String deviceId) {
+    _showConfirmDialog(
+      context,
+      title: 'Xóa thiết bị?',
+      message: 'Xác nhận xóa thiết bị này khỏi khu vực?',
+      onConfirm: () {
+        garden.deleteDevice(areaId, deviceId);
+      },
+    );
+  }
+
+  void _showConfirmDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
   }
 }

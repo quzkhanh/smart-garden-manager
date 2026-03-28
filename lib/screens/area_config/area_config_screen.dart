@@ -7,6 +7,11 @@ import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_card.dart';
+import 'widgets/config_section_header.dart';
+import 'widgets/config_range_labels.dart';
+import 'widgets/config_time_button.dart';
+import 'widgets/config_duration_row.dart';
+import 'widgets/config_save_bar.dart';
 
 class AreaConfigScreen extends StatefulWidget {
   final String areaId;
@@ -29,17 +34,14 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
   @override
   void initState() {
     super.initState();
-    final garden =
-        Provider.of<GardenProvider>(context, listen: false);
+    final garden = Provider.of<GardenProvider>(context, listen: false);
     final area = garden.getArea(widget.areaId);
     final config = area?.config ?? const AreaConfig();
     _nameController = TextEditingController(text: area?.name ?? '');
     _soilThreshold = config.soilMoistureThreshold;
     _maxTemp = config.maxTemperature;
-    _lightOn = TimeOfDay(
-        hour: config.lightOnHour, minute: config.lightOnMinute);
-    _lightOff = TimeOfDay(
-        hour: config.lightOffHour, minute: config.lightOffMinute);
+    _lightOn = TimeOfDay(hour: config.lightOnHour, minute: config.lightOnMinute);
+    _lightOff = TimeOfDay(hour: config.lightOffHour, minute: config.lightOffMinute);
     _nameController.addListener(_onChanged);
   }
 
@@ -82,20 +84,12 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      _showSnackBar(
-          context, AppLocalizations.of(context).t('config_error'),
-          isError: true);
+      _showSnackBar(context, AppLocalizations.of(context).t('config_error'), isError: true);
       return;
     }
     setState(() => _isSaving = true);
 
-    // Simulate async Firebase write (replace with actual Firebase call):
-    // await DatabaseReference.child('zones/${widget.areaId}/name').set(name);
-    // await DatabaseReference.child('zones/${widget.areaId}/configs').update(config.toMap());
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    final garden =
-        Provider.of<GardenProvider>(context, listen: false);
+    final garden = Provider.of<GardenProvider>(context, listen: false);
     final config = AreaConfig(
       soilMoistureThreshold: _soilThreshold,
       maxTemperature: _maxTemp,
@@ -112,12 +106,10 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
       _isSaving = false;
       _hasChanges = false;
     });
-    _showSnackBar(
-        context, AppLocalizations.of(context).t('config_saved'));
+    _showSnackBar(context, AppLocalizations.of(context).t('config_saved'));
   }
 
-  void _showSnackBar(BuildContext context, String msg,
-      {bool isError = false}) {
+  void _showSnackBar(BuildContext context, String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -125,24 +117,19 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
           content: Row(
             children: [
               Icon(
-                isError
-                    ? Icons.error_outline_rounded
-                    : Icons.check_circle_outline_rounded,
+                isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
                 color: Colors.white,
                 size: 18,
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(msg,
-                    style: const TextStyle(color: Colors.white)),
+                child: Text(msg, style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
-          backgroundColor:
-              isError ? AppColors.alertHigh : AppColors.primaryGreen,
+          backgroundColor: isError ? AppColors.alertHigh : AppColors.primaryGreen,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -167,13 +154,10 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
           icon: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.04),
+              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                const Icon(Icons.chevron_left_rounded, size: 24),
+            child: const Icon(Icons.chevron_left_rounded, size: 24),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -183,7 +167,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
           children: [
             // ── Area Name ─────────────────────────────────────────────────
-            _SectionHeader(
+            ConfigSectionHeader(
               icon: Icons.edit_rounded,
               color: AppColors.secondaryBlue,
               title: l10n.t('area_name'),
@@ -199,8 +183,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                 decoration: InputDecoration(
                   hintText: l10n.t('area_name_hint'),
                   border: InputBorder.none,
-                  prefixIcon: const Icon(Icons.label_outline_rounded,
-                      color: AppColors.secondaryBlue, size: 20),
+                  prefixIcon: const Icon(Icons.label_outline_rounded, color: AppColors.secondaryBlue, size: 20),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -209,7 +192,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
             const SizedBox(height: 20),
 
             // ── Water / Soil Moisture ──────────────────────────────────────
-            _SectionHeader(
+            ConfigSectionHeader(
               icon: Icons.water_drop_rounded,
               color: AppColors.secondaryBlue,
               title: l10n.t('config_water'),
@@ -219,33 +202,26 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.t('config_soil_threshold'),
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  Text(l10n.t('config_soil_threshold'), style: theme.textTheme.titleSmall),
                   const SizedBox(height: 4),
                   Text(
                     l10n.t('config_soil_hint'),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color
-                          ?.withValues(alpha: 0.6),
+                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.grass_rounded,
-                          size: 18, color: AppColors.primaryGreen),
+                      const Icon(Icons.grass_rounded, size: 18, color: AppColors.primaryGreen),
                       const SizedBox(width: 8),
                       Expanded(
                         child: SliderTheme(
                           data: SliderTheme.of(context).copyWith(
                             activeTrackColor: AppColors.primaryGreen,
-                            inactiveTrackColor: AppColors.primaryGreen
-                                .withValues(alpha: 0.2),
+                            inactiveTrackColor: AppColors.primaryGreen.withValues(alpha: 0.2),
                             thumbColor: AppColors.primaryGreen,
-                            overlayColor: AppColors.primaryGreen
-                                .withValues(alpha: 0.12),
+                            overlayColor: AppColors.primaryGreen.withValues(alpha: 0.12),
                             trackHeight: 4,
                           ),
                           child: Slider(
@@ -261,11 +237,9 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryGreen
-                              .withValues(alpha: isDark ? 0.2 : 0.1),
+                          color: AppColors.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -278,7 +252,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                       ),
                     ],
                   ),
-                  _RangeLabels(min: '10%', max: '90%'),
+                  const ConfigRangeLabels(min: '10%', max: '90%'),
                 ],
               ),
             ).animate().fadeIn(delay: 160.ms, duration: 400.ms),
@@ -286,7 +260,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
             const SizedBox(height: 20),
 
             // ── Temperature ────────────────────────────────────────────────
-            _SectionHeader(
+            ConfigSectionHeader(
               icon: Icons.thermostat_rounded,
               color: Colors.orange,
               title: l10n.t('config_temperature'),
@@ -296,33 +270,26 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.t('config_max_temp'),
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  Text(l10n.t('config_max_temp'), style: theme.textTheme.titleSmall),
                   const SizedBox(height: 4),
                   Text(
                     l10n.t('config_max_temp_hint'),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color
-                          ?.withValues(alpha: 0.6),
+                      color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.thermostat_rounded,
-                          size: 18, color: Colors.orange),
+                      const Icon(Icons.thermostat_rounded, size: 18, color: Colors.orange),
                       const SizedBox(width: 8),
                       Expanded(
                         child: SliderTheme(
                           data: SliderTheme.of(context).copyWith(
                             activeTrackColor: Colors.orange,
-                            inactiveTrackColor:
-                                Colors.orange.withValues(alpha: 0.2),
+                            inactiveTrackColor: Colors.orange.withValues(alpha: 0.2),
                             thumbColor: Colors.orange,
-                            overlayColor:
-                                Colors.orange.withValues(alpha: 0.12),
+                            overlayColor: Colors.orange.withValues(alpha: 0.12),
                             trackHeight: 4,
                           ),
                           child: Slider(
@@ -338,11 +305,9 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.orange
-                              .withValues(alpha: isDark ? 0.2 : 0.1),
+                          color: Colors.orange.withValues(alpha: isDark ? 0.2 : 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -355,7 +320,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                       ),
                     ],
                   ),
-                  _RangeLabels(min: '20°C', max: '45°C'),
+                  const ConfigRangeLabels(min: '20°C', max: '45°C'),
                 ],
               ),
             ).animate().fadeIn(delay: 240.ms, duration: 400.ms),
@@ -363,7 +328,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
             const SizedBox(height: 20),
 
             // ── Lighting Schedule ──────────────────────────────────────────
-            _SectionHeader(
+            ConfigSectionHeader(
               icon: Icons.wb_sunny_rounded,
               color: Colors.amber,
               title: l10n.t('config_lighting'),
@@ -375,8 +340,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                   // Schedule summary banner
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -385,15 +349,12 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.amber
-                              .withValues(alpha: 0.3)),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.wb_sunny_rounded,
-                            color: Colors.amber, size: 18),
+                        const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           _formatTime(_lightOn),
@@ -403,14 +364,10 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                           ),
                         ),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          child: Icon(Icons.arrow_forward_rounded,
-                              size: 16,
-                              color: Colors.amber.withValues(alpha: 0.7)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.amber.withValues(alpha: 0.7)),
                         ),
-                        const Icon(Icons.nights_stay_rounded,
-                            color: Colors.amber, size: 18),
+                        const Icon(Icons.nights_stay_rounded, color: Colors.amber, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           _formatTime(_lightOff),
@@ -429,7 +386,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _TimeButton(
+                        child: ConfigTimeButton(
                           label: l10n.t('config_light_on'),
                           time: _formatTime(_lightOn),
                           icon: Icons.wb_sunny_rounded,
@@ -439,7 +396,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _TimeButton(
+                        child: ConfigTimeButton(
                           label: l10n.t('config_light_off'),
                           time: _formatTime(_lightOff),
                           icon: Icons.nights_stay_rounded,
@@ -452,7 +409,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
 
                   // Duration display
                   const SizedBox(height: 12),
-                  _DurationRow(on: _lightOn, off: _lightOff, l10n: l10n),
+                  ConfigDurationRow(on: _lightOn, off: _lightOff),
                 ],
               ),
             ).animate().fadeIn(delay: 320.ms, duration: 400.ms),
@@ -461,9 +418,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
           ],
         ),
       ),
-
-      // ── Save Button ─────────────────────────────────────────────────────
-      bottomNavigationBar: _SaveBar(
+      bottomNavigationBar: ConfigSaveBar(
         hasChanges: _hasChanges,
         isSaving: _isSaving,
         label: l10n.t('update_config'),
@@ -472,261 +427,5 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     );
   }
 
-  String _formatTime(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-}
-
-// ── Section Header ────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-
-  const _SectionHeader({
-    required this.icon,
-    required this.color,
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Range Labels ──────────────────────────────────────────────────────────────
-
-class _RangeLabels extends StatelessWidget {
-  final String min;
-  final String max;
-
-  const _RangeLabels({required this.min, required this.max});
-
-  @override
-  Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.color
-              ?.withValues(alpha: 0.5),
-          fontSize: 11,
-        );
-    return Padding(
-      padding: const EdgeInsets.only(left: 26, top: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(min, style: style),
-          Text(max, style: style),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Time Button ───────────────────────────────────────────────────────────────
-
-class _TimeButton extends StatelessWidget {
-  final String label;
-  final String time;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _TimeButton({
-    required this.label,
-    required this.time,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.12 : 0.06),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color
-                    ?.withValues(alpha: 0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              time,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Duration Row ──────────────────────────────────────────────────────────────
-
-class _DurationRow extends StatelessWidget {
-  final TimeOfDay on;
-  final TimeOfDay off;
-  final AppLocalizations l10n;
-
-  const _DurationRow(
-      {required this.on, required this.off, required this.l10n});
-
-  int _durationMinutes() {
-    final onMins = on.hour * 60 + on.minute;
-    final offMins = off.hour * 60 + off.minute;
-    // Handle overnight (e.g. 22:00 → 06:00)
-    return offMins >= onMins
-        ? offMins - onMins
-        : (24 * 60 - onMins) + offMins;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final durationMins = _durationMinutes();
-    final h = durationMins ~/ 60;
-    final m = durationMins % 60;
-    final durationStr = h > 0
-        ? (m > 0 ? '${h}h ${m}ph' : '${h}h')
-        : '${m}ph';
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.timer_outlined, size: 14, color: Colors.amber),
-        const SizedBox(width: 6),
-        Text(
-          '${l10n.t('config_light_duration')}: $durationStr',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: Colors.amber.shade700,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Save Bar ──────────────────────────────────────────────────────────────────
-
-class _SaveBar extends StatelessWidget {
-  final bool hasChanges;
-  final bool isSaving;
-  final String label;
-  final VoidCallback onSave;
-
-  const _SaveBar({
-    required this.hasChanges,
-    required this.isSaving,
-    required this.label,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2128) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: AnimatedOpacity(
-            opacity: hasChanges ? 1.0 : 0.5,
-            duration: const Duration(milliseconds: 200),
-            child: ElevatedButton(
-              onPressed: (hasChanges && !isSaving) ? onSave : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    AppColors.primaryGreen.withValues(alpha: 0.5),
-                minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: isSaving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.cloud_upload_outlined, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  String _formatTime(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 }

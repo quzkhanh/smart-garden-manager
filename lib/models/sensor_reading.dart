@@ -12,16 +12,20 @@ class SensorReading {
   /// Create from Firestore document
   factory SensorReading.fromMap(Map<String, dynamic> map) {
     return SensorReading(
-      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((map['timestamp'] as num).toInt()),
       value: (map['value'] as num).toDouble(),
     );
   }
 
   /// Convert to Firestore document
   Map<String, dynamic> toMap() {
+    // Firebase TTL: Automatically delete this document 25 hours after creation
+    final expireAt = timestamp.add(const Duration(hours: 25));
+
     return {
       'timestamp': timestamp.millisecondsSinceEpoch,
       'value': value,
+      'expireAt': expireAt.millisecondsSinceEpoch,
     };
   }
 }

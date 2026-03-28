@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pinput/pinput.dart';
 import '../../providers/auth_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
@@ -17,9 +18,8 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final _otpController = TextEditingController();
+  final _focusNode = FocusNode();
   Timer? _timer;
   int _countdown = 58;
 
@@ -30,7 +30,7 @@ class _OtpScreenState extends State<OtpScreen> {
     // Auto-focus the first OTP input
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _focusNodes[0].requestFocus();
+        _focusNode.requestFocus();
       }
     });
   }
@@ -54,26 +54,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _otpController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  String get _otp => _controllers.map((c) => c.text).join();
-
-  void _onOtpChanged(int index, String value) {
-    if (value.isNotEmpty && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
-    setState(() {});
-  }
+  String get _otp => _otpController.text;
 
   @override
   Widget build(BuildContext context) {
@@ -179,46 +165,69 @@ class _OtpScreenState extends State<OtpScreen> {
                           const SizedBox(height: 24),
 
                           // OTP inputs
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: List.generate(6, (index) {
-                              return SizedBox(
-                                width: 44,
-                                height: 52,
-                                child: TextField(
-                                  controller: _controllers[index],
-                                  focusNode: _focusNodes[index],
-                                  textAlign: TextAlign.center,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 1,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  decoration: InputDecoration(
-                                    counterText: '',
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  onChanged: (val) => _onOtpChanged(index, val),
+                          Pinput(
+                            length: 6,
+                            controller: _otpController,
+                            focusNode: _focusNode,
+                            defaultPinTheme: PinTheme(
+                              width: 44,
+                              height: 52,
+                              textStyle: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ) ?? const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                border: Border.all(
+                                  color: isDark 
+                                      ? Colors.white.withValues(alpha: 0.2) 
+                                      : Colors.black.withValues(alpha: 0.1),
                                 ),
-                              );
-                            }),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            focusedPinTheme: PinTheme(
+                              width: 44,
+                              height: 52,
+                              textStyle: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ) ?? const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                border: Border.all(color: AppColors.primaryGreen, width: 2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onCompleted: (pin) async {
+                              // Auto submit when finished typing
+                              setState(() {});
+                            },
+                            onChanged: (_) {
+                              setState(() {});
+                            },
                           ).animate().fadeIn(duration: 400.ms),
                           const SizedBox(height: 24),
 
-                          // Verify button
                           AppButton(
                             text: l10n.t('verify'),
                             isLoading: auth.isLoading,
                             onPressed: _otp.length == 6
-                                ? () => auth.verifyOtp(_otp)
+                                ? () async {
+                                    final success = await auth.verifyOtp(_otp);
+                                    if (!success && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            l10n.t('otp_invalid'),
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                          backgroundColor: AppColors.alertHigh,
+                                        ),
+                                      );
+                                      // Clear text field contents
+                                      _otpController.clear();
+                                      _focusNode.requestFocus();
+                                    }
+                                  }
                                 : null,
                           ),
                           const SizedBox(height: 16),
