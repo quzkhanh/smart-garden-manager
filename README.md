@@ -6,13 +6,62 @@ A modern **Smart Garden Management** application built with Flutter — designed
 
 ## 📱 Demo Screenshots
 
-| Login | Home | Area Detail |
-|-------|------|-------------|
-| ![Login](demo/01_login_screen.png) | ![Home](demo/02_home_screen.png) | ![Detail](demo/03_area_detail_screen.png) |
+### 🔐 Login
 
-| Alerts | Settings |
-|--------|----------|
-| ![Alerts](demo/04_alerts_screen.png) | ![Settings](demo/05_settings_screen.png) |
+<table>
+  <tr>
+    <td align="center"><img src="demo/1.Login_Screen.png" width="300"/><br/><b>Login Screen</b></td>
+    <td align="center"><img src="demo/1_2.OTP_verification.png" width="300"/><br/><b>OTP Verification</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="demo/1_3.Login_using_QR.png" width="300"/><br/><b>QR Code Login</b></td>
+    <td></td>
+  </tr>
+</table>
+
+### 🏡 Home
+
+<table>
+  <tr>
+    <td align="center"><img src="demo/2_Home_Screen.png" width="300"/><br/><b>Home Screen</b></td>
+    <td align="center"><img src="demo/2_Home_Screen_2.png" width="300"/><br/><b>Home Screen (scroll)</b></td>
+  </tr>
+</table>
+
+### 📍 Area Details
+
+<table>
+  <tr>
+    <td align="center"><img src="demo/3_Area_details.png" width="300"/><br/><b>Area Details</b></td>
+    <td align="center"><img src="demo/3_Area_details2.png" width="300"/><br/><b>Area Details (scroll)</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="demo/3_Area_details_settings.png" width="300"/><br/><b>Area Config</b></td>
+    <td align="center"><img src="demo/3_Area_details_settings2.png" width="300"/><br/><b>Area Config (scroll)</b></td>
+  </tr>
+</table>
+
+### 🔔 Alerts
+
+<table>
+  <tr>
+    <td align="center"><img src="demo/4_warining_screen.png" width="300"/><br/><b>Alerts Screen</b></td>
+    <td align="center"><img src="demo/4_warining_screen2.png" width="300"/><br/><b>Alerts (filtered)</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="demo/4_warining_screen3.png" width="300"/><br/><b>Alert Detail</b></td>
+    <td></td>
+  </tr>
+</table>
+
+### ⚙️ Settings & Logout
+
+<table>
+  <tr>
+    <td align="center"><img src="demo/5_settings.png" width="300"/><br/><b>Settings</b></td>
+    <td align="center"><img src="demo/6_log_out.png" width="300"/><br/><b>Logout</b></td>
+  </tr>
+</table>
 
 ---
 
@@ -137,7 +186,7 @@ lib/
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/quzkhanh/smart-garden-manager.git
 cd smart_garden
 
 # Install dependencies
