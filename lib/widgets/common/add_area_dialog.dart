@@ -13,6 +13,14 @@ class _AddAreaDialogState extends State<AddAreaDialog> {
   final _controller = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  final List<Map<String, dynamic>> _deviceTypes = [
+    {'type': 'pump', 'label': 'pump', 'icon': Icons.water_drop_rounded, 'checked': true},
+    {'type': 'fan', 'label': 'fan', 'icon': Icons.air_rounded, 'checked': true},
+    {'type': 'light', 'label': 'light', 'icon': Icons.lightbulb_outline_rounded, 'checked': false},
+    {'type': 'mist', 'label': 'mist', 'icon': Icons.cloud_queue_rounded, 'checked': false},
+    {'type': 'valve', 'label': 'valve', 'icon': Icons.settings_input_component_rounded, 'checked': false},
+  ];
+
   @override
   void dispose() {
     _controller.dispose();
@@ -23,25 +31,73 @@ class _AddAreaDialogState extends State<AddAreaDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Text(l10n.t('add_area')),
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          controller: _controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.t('area_name_hint'),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t('area_name'),
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: l10n.t('area_name_hint'),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return l10n.t('area_name_required');
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  l10n.t('initial_devices'),
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  l10n.t('select_devices'),
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                ..._deviceTypes.map((device) {
+                  return CheckboxListTile(
+                    value: device['checked'],
+                    onChanged: (val) {
+                      setState(() {
+                        device['checked'] = val;
+                      });
+                    },
+                    title: Text(l10n.t(device['label'])),
+                    secondary: Icon(device['icon'], color: device['checked'] ? AppColors.primaryGreen : null),
+                    activeColor: AppColors.primaryGreen,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  );
+                }),
+              ],
+            ),
           ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return l10n.t('area_name_required');
-            }
-            return null;
-          },
         ),
       ),
       actions: [
@@ -52,13 +108,23 @@ class _AddAreaDialogState extends State<AddAreaDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              Navigator.pop(context, _controller.text.trim());
+              final selectedDevices = _deviceTypes
+                  .where((d) => d['checked'] == true)
+                  .map((d) => d['type'] as String)
+                  .toList();
+              
+              Navigator.pop(context, {
+                'name': _controller.text.trim(),
+                'devices': selectedDevices,
+              });
             }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryGreen,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: Text(l10n.t('confirm')),
         ),

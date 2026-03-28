@@ -123,22 +123,40 @@ const Map<String, String> vi = {
   'tablet': 'Máy tính bảng',
 
   // Settings
-  'settings': 'Cài đặt',
-  'user': 'Người dùng',
+  'appearance': 'Giao diện',
+  'dark_mode': 'Chế độ tối',
+  'light_mode': 'Chế độ sáng',
+  'system_mode': 'Theo hệ thống',
   'language': 'Ngôn ngữ',
   'vietnamese': 'Tiếng Việt',
   'english': 'English',
-  'theme': 'Giao diện',
-  'light_mode': 'Sáng',
-  'dark_mode': 'Tối',
-  'system_mode': 'Theo hệ thống',
+  'theme': 'Chủ đề nền',
+  'user': 'Người dùng',
+  'app_info': 'Thông tin ứng dụng',
+
+  // Profile / UID
+  'profile': 'Hồ sơ cá nhân',
+  'user_id': 'Mã người dùng (UID)',
+  'copy_id': 'Sao chép mã',
   'logout': 'Đăng xuất',
   'logout_confirm': 'Bạn có chắc muốn đăng xuất?',
+  'copied': 'Đã sao chép vào bộ nhớ tạm!',
 
   // Navigation
   'home': 'Trang chủ',
   'devices': 'Thiết bị đã đăng nhập',
   'nav_devices': 'Thiết bị',
+
+  // Delete Confirmation
+  'delete_confirm_title': 'Xác nhận xóa khu vực',
+  'delete_confirm_desc': 'Hành động này không thể hoàn tác. Vui lòng nhập chữ \'{word}\' để xác nhận xóa.',
+  'delete_confirm_word': 'Xác Nhận',
+  'delete_confirm_error': 'Nội dung nhập chưa đúng!',
+  'delete_confirm_hint': 'Nhập tại đây...',
+
+  // Add Area / Initial Devices
+  'initial_devices': 'Thiết bị khởi tạo',
+  'select_devices': 'Chọn thiết bị muốn cài đặt sẵn cho khu vực này:',
 
   // Empty states
   'no_alerts': 'Không có cảnh báo nào',

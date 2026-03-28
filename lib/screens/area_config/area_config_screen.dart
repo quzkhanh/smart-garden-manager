@@ -7,6 +7,7 @@ import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_card.dart';
+import '../../widgets/common/delete_area_dialog.dart';
 import 'widgets/config_section_header.dart';
 import 'widgets/config_range_labels.dart';
 import 'widgets/config_time_button.dart';
@@ -400,7 +401,8 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                           label: l10n.t('config_light_off'),
                           time: _formatTime(_lightOff),
                           icon: Icons.nights_stay_rounded,
-                          color: Colors.blueGrey,
+                          secondaryIcon: Icons.star_rounded,
+                          color: const Color(0xFF001F3F), // Solid Color for Solid Background
                           onTap: () => _pickTime(context, false),
                         ),
                       ),
@@ -414,6 +416,38 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               ),
             ).animate().fadeIn(delay: 320.ms, duration: 400.ms),
 
+            const SizedBox(height: 48),
+
+            // ── Danger Zone ───────────────────────────────────────────────
+            Text(
+              'Danger Zone',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: Colors.red.shade400,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
+            ).animate().fadeIn(delay: 360.ms),
+            const SizedBox(height: 8),
+            AppCard(
+              onTap: () => _confirmDeleteArea(context),
+              child: Row(
+                children: [
+                  Icon(Icons.delete_forever_rounded, color: Colors.red.shade400, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Xóa bản ghi khu vực này',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: Colors.red.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: Colors.red.withValues(alpha: 0.3)),
+                ],
+              ),
+            ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
+
             const SizedBox(height: 32),
           ],
         ),
@@ -423,6 +457,21 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
         isSaving: _isSaving,
         label: l10n.t('update_config'),
         onSave: _save,
+      ),
+    );
+  }
+
+
+  void _confirmDeleteArea(BuildContext context) {
+    final garden = Provider.of<GardenProvider>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (ctx) => DeleteAreaDialog(
+        areaName: _nameController.text.trim(),
+        onConfirm: () {
+          garden.deleteArea(widget.areaId);
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
       ),
     );
   }

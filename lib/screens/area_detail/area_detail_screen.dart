@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/garden_provider.dart';
+import '../../widgets/common/delete_area_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/sensor_bar.dart';
@@ -236,14 +237,6 @@ class AreaDetailScreen extends StatelessWidget {
             ),
             onPressed: () => context.push('/area/${areaId}/config'),
           ),
-          IconButton(
-            tooltip: 'Xóa khu vực',
-            icon: Icon(
-              Icons.delete_outline_rounded,
-              color: Colors.red.shade400,
-            ),
-            onPressed: () => _confirmDeleteArea(context, garden),
-          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -310,14 +303,15 @@ class AreaDetailScreen extends StatelessWidget {
   }
 
   void _confirmDeleteArea(BuildContext context, GardenProvider garden) {
-    _showConfirmDialog(
-      context,
-      title: 'Xóa khu vực?',
-      message: 'Hành động này không thể hoàn tác. Toàn bộ thiết bị và dữ liệu khu vực sẽ bị xóa vĩnh viễn.',
-      onConfirm: () {
-        garden.deleteArea(areaId);
-        context.pop(); // Go back to home
-      },
+    showDialog(
+      context: context,
+      builder: (ctx) => DeleteAreaDialog(
+        areaName: garden.getArea(areaId)?.name ?? '',
+        onConfirm: () {
+          garden.deleteArea(areaId);
+          context.pop(); // Quay lại trang chủ
+        },
+      ),
     );
   }
 

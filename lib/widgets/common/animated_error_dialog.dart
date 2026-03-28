@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_colors.dart';
-import '../../l10n/app_localizations.dart';
 
 class AnimatedErrorDialog extends StatelessWidget {
   final String title;

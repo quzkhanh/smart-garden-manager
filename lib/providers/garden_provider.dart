@@ -95,10 +95,36 @@ class GardenProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> addArea(String name) async {
+  Future<void> addArea(String name, {List<String>? initialDeviceTypes}) async {
     if (_uid == null) return;
     
     try {
+      final List<Device> devices = [];
+      if (initialDeviceTypes != null) {
+        for (final type in initialDeviceTypes) {
+           String devName = '';
+           switch(type) {
+             case 'pump': devName = 'Máy bơm'; break;
+             case 'fan': devName = 'Quạt thông gió'; break;
+             case 'light': devName = 'Đèn chiếu sáng'; break;
+             case 'mist': devName = 'Phun sương'; break;
+             case 'valve': devName = 'Van nước'; break;
+             default: devName = 'Thiết bị mới';
+           }
+           devices.add(Device(
+             id: '${type}_${DateTime.now().millisecondsSinceEpoch}',
+             name: devName,
+             type: type,
+           ));
+        }
+      } else {
+        // Default devices if none specified
+        devices.addAll([
+          Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
+          Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
+        ]);
+      }
+
       final newArea = Area(
         id: '', // Firestore will generate
         name: name,
@@ -107,10 +133,7 @@ class GardenProvider extends ChangeNotifier {
           Sensor(id: 'humi', type: 'air_humidity', value: 60.0, unit: '%'),
           Sensor(id: 'soil', type: 'soil_moisture', value: 45.0, unit: '%'),
         ],
-        devices: [
-          Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
-          Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
-        ],
+        devices: devices,
         createdAt: DateTime.now(),
       );
 

@@ -65,6 +65,23 @@ class AppRouter {
           builder: (context, state) => const QrLoginScreen(),
         ),
 
+        GoRoute(
+          path: '/area/:areaId',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (context, state) {
+            final areaId = state.pathParameters['areaId']!;
+            return AreaDetailScreen(areaId: areaId);
+          },
+        ),
+        GoRoute(
+          path: '/area/:areaId/config',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (context, state) {
+            final areaId = state.pathParameters['areaId']!;
+            return AreaConfigScreen(areaId: areaId);
+          },
+        ),
+
         // Main app with bottom navigation
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
@@ -75,26 +92,6 @@ class AppRouter {
             GoRoute(
               path: '/',
               builder: (context, state) => const HomeScreen(),
-              routes: [
-                GoRoute(
-                  path: 'area/:areaId',
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) {
-                    final areaId = state.pathParameters['areaId']!;
-                    return AreaDetailScreen(areaId: areaId);
-                  },
-                  routes: [
-                    GoRoute(
-                      path: 'config',
-                      parentNavigatorKey: _rootNavigatorKey,
-                      builder: (context, state) {
-                        final areaId = state.pathParameters['areaId']!;
-                        return AreaConfigScreen(areaId: areaId);
-                      },
-                    ),
-                  ],
-                ),
-              ],
             ),
             GoRoute(
               path: '/alerts',

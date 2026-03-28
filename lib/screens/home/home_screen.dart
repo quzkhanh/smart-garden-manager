@@ -20,6 +20,7 @@ class HomeScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
     final alertProvider = context.watch<AlertProvider>();
+    final isDark = theme.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 800;
     final isMedium = screenWidth > 600;
@@ -27,12 +28,14 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final name = await showDialog<String>(
+          final result = await showDialog<Map<String, dynamic>>(
             context: context,
             builder: (ctx) => const AddAreaDialog(),
           );
-          if (name != null) {
-            await garden.addArea(name);
+          if (result != null) {
+            final name = result['name'] as String;
+            final devices = result['devices'] as List<String>;
+            await garden.addArea(name, initialDeviceTypes: devices);
           }
         },
         backgroundColor: AppColors.primaryGreen,
@@ -50,15 +53,20 @@ class HomeScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
                             l10n.t('my_garden'),
                             style: theme.textTheme.headlineLarge,
                           ).animate().fadeIn(duration: 400.ms),
+                        ],
+                      ),
                           const SizedBox(height: 4),
                           Text(
                             l10n.t('overview'),
                             style: theme.textTheme.bodyMedium,
-                          ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+                          ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
                         ],
                       ),
                     ),
