@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/garden_provider.dart';
 import '../../providers/alert_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/area_card.dart';
-import '../../widgets/summary_card.dart';
 import '../../widgets/common/loading_skeleton.dart';
 import '../../widgets/common/add_area_dialog.dart';
-import 'package:go_router/go_router.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _showWeatherAddress = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,210 +46,324 @@ class HomeScreen extends StatelessWidget {
           }
         },
         backgroundColor: AppColors.primaryGreen,
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        child: Icon(LucideIcons.plus, color: Colors.white),
       ),
       body: SafeArea(
         child: garden.isLoading
             ? _buildLoadingState()
-            : CustomScrollView(
-                slivers: [
-                  // Header
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.t('my_garden'),
-                            style: theme.textTheme.headlineLarge,
-                          ).animate().fadeIn(duration: 400.ms),
-                        ],
-                      ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.t('overview'),
-                            style: theme.textTheme.bodyMedium,
-                          ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Summary cards
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (isWide) {
-                            return Row(
+            : RefreshIndicator(
+                onRefresh: () async {
+                  await garden.refreshData();
+                },
+                color: AppColors.primaryGreen,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    // Header & Dashboard
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top Greeting Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: SummaryCard(
-                                    icon: Icons.grid_view_rounded,
-                                    color: AppColors.primaryGreen,
-                                    label: l10n.t('total_areas'),
-                                    value: '${garden.totalAreas}',
-                                  ),
+                                  child: Text(
+                                    _getGreeting(context, garden.currentWeather),
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryGreen,
+                                    ),
+                                  ).animate().fadeIn(duration: 400.ms),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: SummaryCard(
-                                    icon: Icons.trending_up_rounded,
-                                    color: AppColors.secondaryBlue,
-                                    label: l10n.t('active_devices'),
-                                    value: '${garden.totalActiveDevices}',
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Dashboard Grid (3 rows, 2 columns - 1:3 Width Ratio)
+                            if (garden.currentWeather != null)
+                              Column(
+                                children: [
+                                  // Row 1: Areas + Weather Status
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 1,
+                                        child: _buildCompactMetric(
+                                          icon: LucideIcons.layoutGrid,
+                                          value: '${garden.totalAreas}',
+                                          label: l10n.t('total_areas'),
+                                          color: AppColors.primaryGreen,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 3,
+                                        child: _buildCompactMetric(
+                                          icon: _getWeatherIcon(garden.currentWeather),
+                                          value: garden.currentWeather?.description ?? 'N/A',
+                                          label: l10n.t('weather_status'),
+                                          color: AppColors.primaryGreen,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  const SizedBox(height: 10),
+                                  
+                                  // Row 2: Devices + Temperature
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 1,
+                                        child: _buildCompactMetric(
+                                          icon: LucideIcons.cpu,
+                                          value: '${garden.totalDevices}',
+                                          label: l10n.t('total_devices'),
+                                          color: AppColors.secondaryBlue,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 3,
+                                        child: _buildCompactMetric(
+                                          icon: LucideIcons.thermometer,
+                                          value: '${garden.currentWeather?.temp.round() ?? "--"}°C',
+                                          label: l10n.t('weather_temp'),
+                                          color: AppColors.alertMedium,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+      
+                                  // Row 3: Alerts + Location
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 1,
+                                        child: _buildCompactMetric(
+                                          icon: LucideIcons.bellRing,
+                                          value: '${alertProvider.unreadCount}',
+                                          label: l10n.t('alerts_count'),
+                                          color: alertProvider.unreadCount > 0 ? AppColors.alertHigh : Colors.grey,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 3,
+                                        child: _buildCompactMetric(
+                                          icon: LucideIcons.mapPin,
+                                          value: _formatCityName(garden.currentWeather?.cityName),
+                                          label: l10n.t('location'),
+                                          color: Colors.orange,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ).animate().fadeIn(delay: 100.ms),
+                          ],
+                        ),
+                      ),
+                    ),
+      
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+      
+                    // Area list
+                    if (garden.areas.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  LucideIcons.leaf,
+                                  size: 80,
+                                  color: AppColors.primaryGreen.withValues(alpha: 0.2),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: SummaryCard(
-                                    icon: Icons.notifications_outlined,
-                                    color: AppColors.alertHigh,
-                                    label: l10n.t('alerts_count'),
-                                    value: '${alertProvider.unreadCount}',
+                                const SizedBox(height: 24),
+                                Text(
+                                  l10n.t('no_areas'),
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  l10n.t('no_areas_desc'),
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey.shade600,
                                   ),
                                 ),
                               ],
-                            );
-                          }
-                          return Column(
-                            children: [
-                              SummaryCard(
-                                icon: Icons.grid_view_rounded,
-                                color: AppColors.primaryGreen,
-                                label: l10n.t('total_areas'),
-                                value: '${garden.totalAreas}',
-                              ),
-                              const SizedBox(height: 10),
-                              SummaryCard(
-                                icon: Icons.trending_up_rounded,
-                                color: AppColors.secondaryBlue,
-                                label: l10n.t('active_devices'),
-                                value: '${garden.totalActiveDevices}',
-                              ),
-                              const SizedBox(height: 10),
-                              SummaryCard(
-                                icon: Icons.notifications_outlined,
-                                color: AppColors.alertHigh,
-                                label: l10n.t('alerts_count'),
-                                value: '${alertProvider.unreadCount}',
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                  // Area list
-                  if (garden.areas.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.eco_outlined,
-                                size: 80,
-                                color: AppColors.primaryGreen.withValues(alpha: 0.2),
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                l10n.t('no_areas'),
-                                style: theme.textTheme.titleLarge,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                l10n.t('no_areas_desc'),
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (isWide || isMedium)
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        sliver: SliverGrid(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isWide ? 3 : 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 4,
+                            childAspectRatio: isWide ? 0.85 : 0.75,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final area = garden.areas[index];
+                              return AreaCard(
+                                area: area,
+                                onTap: () => context.push('/area/${area.id}'),
+                              ).animate().fadeIn(
+                                    delay: Duration(milliseconds: 300 + index * 80),
+                                    duration: 400.ms,
+                                  );
+                            },
+                            childCount: garden.areas.length,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final area = garden.areas[index];
+                              return AreaCard(
+                                area: area,
+                                onTap: () => context.push('/area/${area.id}'),
+                              ).animate().fadeIn(
+                                    delay: Duration(milliseconds: 300 + index * 80),
+                                    duration: 400.ms,
+                                  );
+                            },
+                            childCount: garden.areas.length,
                           ),
                         ),
                       ),
-                    )
-                  else if (isWide || isMedium)
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      sliver: SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isWide ? 3 : 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 4,
-                          childAspectRatio: isWide ? 0.85 : 0.75,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final area = garden.areas[index];
-                            return AreaCard(
-                              area: area,
-                              onTap: () => context.push('/area/${area.id}'),
-                            ).animate().fadeIn(
-                                  delay: Duration(milliseconds: 300 + index * 80),
-                                  duration: 400.ms,
-                                );
-                          },
-                          childCount: garden.areas.length,
-                        ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final area = garden.areas[index];
-                            return AreaCard(
-                              area: area,
-                              onTap: () => context.push('/area/${area.id}'),
-                            ).animate().fadeIn(
-                                  delay: Duration(milliseconds: 300 + index * 80),
-                                  duration: 400.ms,
-                                );
-                          },
-                          childCount: garden.areas.length,
-                        ),
-                      ),
-                    ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
+      
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  ],
+                ),
               ),
       ),
+
     );
   }
 
-  Widget _buildLoadingState() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const LoadingSkeleton(width: 160, height: 32),
-          const SizedBox(height: 8),
-          const LoadingSkeleton(width: 100, height: 16),
-          const SizedBox(height: 24),
-          const CardSkeleton(),
-          const SizedBox(height: 8),
-          const CardSkeleton(),
-          const SizedBox(height: 8),
-          const CardSkeleton(),
-        ],
+  Widget _buildCompactMetric({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+    bool isExpanded = false,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Tooltip(
+      message: label,
+      triggerMode: TooltipTriggerMode.tap,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
-    );
+    ).animate().fadeIn(delay: 150.ms);
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  String _getGreeting(BuildContext context, dynamic weather) {
+    final l10n = AppLocalizations.of(context);
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return l10n.t('good_morning');
+    if (hour >= 12 && hour < 17) return l10n.t('good_afternoon');
+    if (hour >= 17 && hour < 21) return l10n.t('good_evening');
+    return l10n.t('good_night');
+  }
+
+  String _getWeatherStatus(BuildContext context, dynamic weather) {
+    final l10n = AppLocalizations.of(context);
+    if (weather == null) return l10n.t('my_garden');
+    
+    final condition = weather.condition.toLowerCase();
+    
+    if (condition.contains('sun') || condition.contains('clear')) return l10n.t('weather_sunny');
+    if (condition.contains('cloud')) return l10n.t('weather_cloudy');
+    if (condition.contains('rain')) return l10n.t('weather_rainy');
+    if (condition.contains('storm')) return l10n.t('weather_stormy');
+    
+    return l10n.t('weather_clear');
+  }
+
+  IconData _getWeatherIcon(dynamic weather) {
+    if (weather == null) return LucideIcons.cloud;
+    final condition = weather.condition.toLowerCase();
+    
+    if (condition.contains('sun') || condition.contains('clear')) return LucideIcons.sun;
+    if (condition.contains('cloud')) return LucideIcons.cloud;
+    if (condition.contains('rain')) return LucideIcons.cloudRain;
+    if (condition.contains('storm')) return LucideIcons.cloudLightning;
+    
+    return LucideIcons.sun;
+  }
+  String _formatCityName(String? name) {
+    if (name == null || name.isEmpty) return 'N/A';
+    
+    // OpenWeatherMap often returns "City Name, CountryCode" 
+    // or sometimes very detailed names in Vietnamese.
+    // We want to keep it simple.
+    
+    String formatted = name.split(',').first;
+    
+    // Remove common suffixes to keep it clean
+    formatted = formatted
+        .replaceAll(' City', '')
+        .replaceAll(' Thành phố', '')
+        .replaceAll(' Tỉnh', '')
+        .replaceAll(' Quận', '')
+        .replaceAll(' Huyện', '')
+        .trim();
+        
+    return formatted;
   }
 }

@@ -1,6 +1,7 @@
 import 'sensor.dart';
 import 'device.dart';
 import 'area_config.dart';
+import 'automation_rule.dart';
 
 class Area {
   final String id;
@@ -8,6 +9,7 @@ class Area {
   bool isAutoMode;
   final List<Sensor> sensors;
   final List<Device> devices;
+  final List<AutomationRule> rules;
   AreaConfig config;
   DateTime? createdAt;
 
@@ -17,6 +19,7 @@ class Area {
     this.isAutoMode = true,
     required this.sensors,
     required this.devices,
+    this.rules = const [],
     AreaConfig? config,
     this.createdAt,
   }) : config = config ?? const AreaConfig();
@@ -30,6 +33,7 @@ class Area {
   }
 
   int get activeDeviceCount => devices.where((d) => d.isOn).length;
+  int get totalDeviceCount => devices.length;
 
   Area copyWith({
     String? id,
@@ -37,6 +41,7 @@ class Area {
     bool? isAutoMode,
     List<Sensor>? sensors,
     List<Device>? devices,
+    List<AutomationRule>? rules,
     AreaConfig? config,
     DateTime? createdAt,
   }) {
@@ -46,10 +51,12 @@ class Area {
       isAutoMode: isAutoMode ?? this.isAutoMode,
       sensors: sensors ?? this.sensors,
       devices: devices ?? this.devices,
+      rules: rules ?? this.rules,
       config: config ?? this.config,
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
 
   factory Area.fromMap(String id, Map<String, dynamic> map) {
     return Area(
@@ -59,6 +66,9 @@ class Area {
       config: map['config'] != null 
           ? AreaConfig.fromMap(map['config'] as Map<String, dynamic>)
           : const AreaConfig(),
+      rules: (map['rules'] as List? ?? [])
+          .map((r) => AutomationRule.fromMap(r['id'] ?? '', r as Map<String, dynamic>))
+          .toList(),
       createdAt: map['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt())
           : null,
@@ -81,6 +91,7 @@ class Area {
       'createdAt': createdAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
       'sensors': sensors.map((s) => s.toMap()..addAll({'id': s.id})).toList(),
       'devices': devices.map((d) => d.toMap()).toList(),
+      'rules': rules.map((r) => r.toMap()).toList(),
     };
   }
 }

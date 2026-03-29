@@ -110,11 +110,19 @@ class _SensorChartState extends State<SensorChart> {
     if (widget.readings.isEmpty) return LineChartData();
     final spots = <FlSpot>[];
     final firstTime = widget.readings.first.timestamp;
-
+    
+    // Optimize performance: decimate data (1 point per hour)
+    DateTime? lastAddedTime;
     for (var i = 0; i < widget.readings.length; i++) {
       final reading = widget.readings[i];
-      final hoursFromStart = reading.timestamp.difference(firstTime).inMinutes / 60.0;
-      spots.add(FlSpot(hoursFromStart, reading.value));
+      
+      if (lastAddedTime == null || 
+          reading.timestamp.difference(lastAddedTime).inMinutes >= 60 || 
+          i == widget.readings.length - 1) {
+        final hoursFromStart = reading.timestamp.difference(firstTime).inMinutes / 60.0;
+        spots.add(FlSpot(hoursFromStart, reading.value));
+        lastAddedTime = reading.timestamp;
+      }
     }
 
     return LineChartData(

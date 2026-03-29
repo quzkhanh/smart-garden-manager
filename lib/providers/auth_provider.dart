@@ -23,6 +23,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoggingOut = false;
   String _lastError = '';
   String? _masterUid;
+  bool _isFirstTime = true;
 
   AuthState get state => _state;
   String get phoneNumber => _phoneNumber;
@@ -32,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _state == AuthState.authenticated;
   String get lastError => _lastError;
   String? get uid => _masterUid ?? _auth.currentUser?.uid;
+  bool get isFirstTime => _isFirstTime;
 
   /// Normalize local phone number to E.164 format
   /// e.g. 0912345678 → +84912345678
@@ -51,6 +53,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _initAuth() async {
     final prefs = await SharedPreferences.getInstance();
     _masterUid = prefs.getString('master_uid');
+    _isFirstTime = prefs.getBool('is_first_time') ?? true;
+    notifyListeners();
 
     // Check if user is already logged in
     _auth.authStateChanges().listen((User? user) {
@@ -58,6 +62,10 @@ class AuthProvider extends ChangeNotifier {
         _state = AuthState.authenticated;
         if (uid != null) {
           _saveDeviceLoginInfo(uid!);
+        }
+        // If logged in, they've clearly passed the "first time" phase or don't need splash
+        if (_isFirstTime) {
+          completeOnboarding();
         }
         notifyListeners();
       }
@@ -89,7 +97,13 @@ class AuthProvider extends ChangeNotifier {
       
       // Check if phone exists in allowed_phones
       try {
-        final doc = await FirebaseFirestore.instance.collection('allowed_phones').doc(normalizedPhone).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('allowed_phones')
+            .doc(normalizedPhone)
+            .get()
+            .timeout(const Duration(seconds: 5), onTimeout: () {
+              throw TimeoutException('Request to Firebase timed out');
+            });
         if (!doc.exists) {
           throw FirebaseAuthException(
             code: 'not-registered', 
@@ -98,8 +112,8 @@ class AuthProvider extends ChangeNotifier {
         }
       } catch (e) {
         if (e is FirebaseAuthException) rethrow;
-        // If getting document fails due to offline/permission, we just let it pass or fail graciously
-        debugPrint('Failed to check registered phone: $e');
+        // If getting document fails due to offline/permission or timeout, let it pass gracefully
+        debugPrint('Failed or timed out checking registered phone: $e');
       }
 
       await _auth.verifyPhoneNumber(
@@ -321,5 +335,12 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isLoggingOut = false;
     }
+  }
+
+  Future<void> completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_first_time', false);
+    _isFirstTime = false;
+    notifyListeners();
   }
 }

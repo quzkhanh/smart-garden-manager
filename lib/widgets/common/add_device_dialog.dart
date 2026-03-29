@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 
@@ -15,11 +16,11 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
   String _selectedType = 'pump';
 
   final List<Map<String, dynamic>> _deviceTypes = [
-    {'id': 'pump', 'icon': Icons.water_drop_rounded, 'label': 'pump'},
-    {'id': 'mist', 'icon': Icons.cloud_rounded, 'label': 'mist'},
-    {'id': 'fan', 'icon': Icons.air_rounded, 'label': 'fan'},
-    {'id': 'light', 'icon': Icons.lightbulb_rounded, 'label': 'light'},
-    {'id': 'valve', 'icon': Icons.settings_input_component_rounded, 'label': 'valve'},
+    {'id': 'pump', 'icon': LucideIcons.droplets, 'label': 'pump'},
+    {'id': 'mist', 'icon': LucideIcons.cloud, 'label': 'mist'},
+    {'id': 'fan', 'icon': LucideIcons.wind, 'label': 'fan'},
+    {'id': 'light', 'icon': LucideIcons.lightbulb, 'label': 'light'},
+    {'id': 'valve', 'icon': LucideIcons.settings, 'label': 'valve'},
   ];
 
   @override
@@ -32,6 +33,12 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+
+    String _getDefaultName(String type, AppLocalizations l10n) {
+      final typeLabel = l10n.t(type);
+      final prefix = l10n.t('new_device_prefix');
+      return '$prefix $typeLabel';
+    }
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -50,12 +57,6 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                 hintText: 'VD: Máy bơm chính',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Vui lòng nhập tên thiết bị';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
             Text(l10n.t('device_type'), style: theme.textTheme.titleSmall),
@@ -91,12 +92,14 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              Navigator.pop(context, {
-                'name': _controller.text.trim(),
-                'type': _selectedType,
-              });
-            }
+            final name = _controller.text.trim().isEmpty 
+                ? _getDefaultName(_selectedType, l10n)
+                : _controller.text.trim();
+                
+            Navigator.pop(context, {
+              'name': name,
+              'type': _selectedType,
+            });
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryGreen,

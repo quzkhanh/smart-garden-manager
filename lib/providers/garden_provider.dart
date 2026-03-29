@@ -6,6 +6,8 @@ import '../models/area_config.dart';
 import '../models/sensor_reading.dart';
 import '../models/sensor.dart';
 import '../models/device.dart';
+import '../models/automation_rule.dart';
+import '../services/weather_service.dart';
 import 'auth_provider.dart';
 
 class GardenProvider extends ChangeNotifier {
@@ -15,6 +17,11 @@ class GardenProvider extends ChangeNotifier {
   String? _uid;
   StreamSubscription? _areasSubscription;
   Timer? _timerCheckTimer;
+  Timer? _weatherTimer;
+  String _language = 'vi';
+  final WeatherService _weatherService = WeatherService();
+  WeatherData? _currentWeather;
+  List<WeatherData> _forecast = [];
 
   List<Area> get areas => _areas;
   bool get isLoading => _isLoading;
@@ -22,6 +29,10 @@ class GardenProvider extends ChangeNotifier {
   int get totalAreas => _areas.length;
   int get totalActiveDevices =>
       _areas.fold<int>(0, (sum, area) => sum + area.activeDeviceCount);
+  int get totalDevices =>
+      _areas.fold<int>(0, (sum, area) => sum + area.totalDeviceCount);
+  WeatherData? get currentWeather => _currentWeather;
+  List<WeatherData> get forecast => _forecast;
 
   GardenProvider() {
     // Check timers every second
@@ -29,11 +40,19 @@ class GardenProvider extends ChangeNotifier {
       const Duration(seconds: 1),
       (_) => _checkTimers(),
     );
+    
+    // Check weather every 15 minutes
+    _weatherTimer = Timer.periodic(
+      const Duration(minutes: 15),
+      (_) => fetchWeather(),
+    );
+    fetchWeather(); // Initial fetch
   }
 
   @override
   void dispose() {
     _timerCheckTimer?.cancel();
+    _weatherTimer?.cancel();
     _areasSubscription?.cancel();
     super.dispose();
   }
@@ -54,6 +73,12 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
+  void updateLocale(String languageCode) {
+    if (_language == languageCode) return;
+    _language = languageCode;
+    fetchWeather(); // Fetch weather in new language
+  }
+
   void _listenToAreas() {
     _isLoading = true;
     notifyListeners();
@@ -70,16 +95,6 @@ class GardenProvider extends ChangeNotifier {
         try {
           final data = doc.data();
           final area = Area.fromMap(doc.id, data);
-          
-          // Fallback: If area has no devices (old data), add some defaults
-          if (area.devices.isEmpty) {
-            area.devices.addAll([
-              Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
-              Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
-            ]);
-            // Optionally update Firestore here, but for now just show in UI
-          }
-          
           updatedAreas.add(area);
         } catch (e) {
           debugPrint('Error parsing area ${doc.id}: $e');
@@ -196,6 +211,10 @@ class GardenProvider extends ChangeNotifier {
     if (index != -1) {
       final newMode = !_areas[index].isAutoMode;
       
+      // Optimistic UI Update
+      _areas[index].isAutoMode = newMode;
+      notifyListeners();
+      
       try {
         await _firestore
             .collection('users')
@@ -220,6 +239,9 @@ class GardenProvider extends ChangeNotifier {
           final device = area.devices[deviceIndex];
           device.isOn = !device.isOn;
           device.clearTimer();
+          
+          // Optimistic UI Update
+          notifyListeners();
           
           try {
             await _firestore
@@ -251,6 +273,9 @@ class GardenProvider extends ChangeNotifier {
         if (deviceIndex != -1) {
           area.devices[deviceIndex].setTimer(duration);
           
+          // Optimistic UI Update
+          notifyListeners();
+          
           try {
             await _firestore
                 .collection('users')
@@ -276,6 +301,9 @@ class GardenProvider extends ChangeNotifier {
       final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
       if (deviceIndex != -1) {
         area.devices[deviceIndex].clearTimer();
+        
+        // Optimistic UI Update
+        notifyListeners();
         
         try {
           await _firestore
@@ -316,6 +344,14 @@ class GardenProvider extends ChangeNotifier {
 
   void updateAreaName(String areaId, String newName) async {
     if (_uid == null) return;
+    
+    // Optimistic UI Update
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      _areas[index].name = newName.trim();
+      notifyListeners();
+    }
+    
     try {
       await _firestore
           .collection('users')
@@ -330,6 +366,14 @@ class GardenProvider extends ChangeNotifier {
 
   void updateAreaConfig(String areaId, AreaConfig newConfig) async {
     if (_uid == null) return;
+    
+    // Optimistic UI Update
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      _areas[index].config = newConfig;
+      notifyListeners();
+    }
+    
     try {
       await _firestore
           .collection('users')
@@ -354,6 +398,9 @@ class GardenProvider extends ChangeNotifier {
       );
       area.devices.add(newDevice);
       
+      // Optimistic UI Update
+      notifyListeners();
+      
       try {
         await _firestore
             .collection('users')
@@ -376,6 +423,9 @@ class GardenProvider extends ChangeNotifier {
       final area = _areas[areaIndex];
       area.devices.removeWhere((d) => d.id == deviceId);
       
+      // Optimistic UI Update
+      notifyListeners();
+      
       try {
         await _firestore
             .collection('users')
@@ -388,6 +438,168 @@ class GardenProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('Error deleting device: $e');
       }
+    }
+  }
+
+  Future<void> fetchWeather() async {
+    final weather = await _weatherService.fetchCurrentWeather(language: _language);
+    if (weather != null) {
+      _currentWeather = weather;
+      _forecast = await _weatherService.fetchForecast(language: _language);
+      notifyListeners();
+      _evaluateAutomations();
+    }
+  }
+
+  Future<void> refreshData() async {
+    // Weather is the only non-realtime data here that needs manual refresh
+    await fetchWeather();
+  }
+
+  void _evaluateAutomations() {
+    for (final area in _areas) {
+      if (!area.isAutoMode) continue;
+      
+      for (final rule in area.rules) {
+        if (!rule.isEnabled) continue;
+        if (rule.conditions.isEmpty) continue;
+        
+        bool allTrue = true;
+        bool anyTrue = false;
+
+        for (final condition in rule.conditions) {
+          bool conditionTriggered = false;
+
+          if (condition.triggerType == RuleTriggerType.sensor) {
+            final sensor = area.getSensor(condition.triggerKey);
+            if (sensor != null) {
+              if (condition.condition == RuleCondition.greaterThan) {
+                conditionTriggered = sensor.value > condition.thresholdValue;
+              } else if (condition.condition == RuleCondition.lessThan) {
+                conditionTriggered = sensor.value < condition.thresholdValue;
+              } else if (condition.condition == RuleCondition.equals) {
+                conditionTriggered = sensor.value == condition.thresholdValue;
+              }
+            }
+          } else if (condition.triggerType == RuleTriggerType.weather && _currentWeather != null) {
+            if (condition.triggerKey == 'rain') {
+              conditionTriggered = _currentWeather!.condition.toLowerCase().contains('rain');
+            } else if (condition.triggerKey == 'temp') {
+              if (condition.condition == RuleCondition.greaterThan) {
+                conditionTriggered = _currentWeather!.temp > condition.thresholdValue;
+              } else if (condition.condition == RuleCondition.lessThan) {
+                conditionTriggered = _currentWeather!.temp < condition.thresholdValue;
+              } else if (condition.condition == RuleCondition.equals) {
+                conditionTriggered = _currentWeather!.temp == condition.thresholdValue;
+              }
+            }
+          }
+
+          if (!conditionTriggered) allTrue = false;
+          if (conditionTriggered) anyTrue = true;
+        }
+
+        bool shouldTrigger = false;
+        if (rule.logicalOperator == LogicalOperator.and) {
+          shouldTrigger = allTrue;
+        } else {
+          shouldTrigger = anyTrue;
+        }
+
+        if (shouldTrigger && rule.actions.isNotEmpty) {
+          bool devicesChanged = false;
+          for (final action in rule.actions) {
+            final deviceIndex = area.devices.indexWhere((d) => d.id == action.deviceId);
+            if (deviceIndex != -1) {
+              final device = area.devices[deviceIndex];
+              if (device.isOn != action.actionOn) {
+                device.isOn = action.actionOn;
+                devicesChanged = true;
+              }
+            }
+          }
+          if (devicesChanged) {
+             _syncAreaDevices(area.id);
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> addRule(String areaId, AutomationRule rule) async {
+    if (_uid == null) return;
+    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
+    if (areaIndex != -1) {
+      final area = _areas[areaIndex];
+      area.rules.add(rule);
+      // Optimistic UI Update
+      notifyListeners();
+      await _syncAreaRules(areaId);
+    }
+  }
+
+  Future<void> updateRule(String areaId, AutomationRule updatedRule) async {
+    if (_uid == null) return;
+    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
+    if (areaIndex != -1) {
+      final area = _areas[areaIndex];
+      final ruleIndex = area.rules.indexWhere((r) => r.id == updatedRule.id);
+      if (ruleIndex != -1) {
+        area.rules[ruleIndex] = updatedRule;
+        // Optimistic UI Update
+        notifyListeners();
+        await _syncAreaRules(areaId);
+      }
+    }
+  }
+
+  Future<void> deleteRule(String areaId, String ruleId) async {
+    if (_uid == null) return;
+    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
+    if (areaIndex != -1) {
+      final area = _areas[areaIndex];
+      area.rules.removeWhere((r) => r.id == ruleId);
+      // Optimistic UI Update
+      notifyListeners();
+      await _syncAreaRules(areaId);
+    }
+  }
+
+  Future<void> _syncAreaRules(String areaId) async {
+    if (_uid == null) return;
+    final area = getArea(areaId);
+    if (area == null) return;
+    
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(areaId)
+          .update({
+        'rules': area.rules.map((r) => r.toMap()).toList()
+      });
+    } catch (e) {
+      debugPrint('Error syncing rules: $e');
+    }
+  }
+
+  Future<void> _syncAreaDevices(String areaId) async {
+    if (_uid == null) return;
+    final area = getArea(areaId);
+    if (area == null) return;
+    
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(areaId)
+          .update({
+        'devices': area.devices.map((d) => d.toMap()).toList()
+      });
+    } catch (e) {
+      debugPrint('Error syncing devices for automation: $e');
     }
   }
 }

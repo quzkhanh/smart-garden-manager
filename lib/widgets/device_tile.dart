@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../models/device.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
@@ -40,14 +41,6 @@ class DeviceTile extends StatelessWidget {
             ? AppColors.primaryGreen.withValues(alpha: isDark ? 0.15 : 0.06)
             : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isActive
-              ? AppColors.primaryGreen.withValues(alpha: 0.3)
-              : (isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.06)),
-          width: 1,
-        ),
       ),
       child: Column(
         children: [
@@ -64,7 +57,7 @@ class DeviceTile extends StatelessWidget {
                 child: Icon(
                   iconData,
                   color: isActive ? AppColors.primaryGreen : theme.textTheme.bodyMedium?.color,
-                  size: 22,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 14),
@@ -106,9 +99,9 @@ class DeviceTile extends StatelessWidget {
                 ),
               ),
               if (onDelete != null) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                  icon: const Icon(LucideIcons.trash2, size: 18),
                   color: AppColors.alertHigh.withValues(alpha: 0.6),
                   onPressed: onDelete,
                   padding: EdgeInsets.zero,
@@ -135,17 +128,17 @@ class DeviceTile extends StatelessWidget {
   IconData _getDeviceIcon(String type) {
     switch (type) {
       case 'pump':
-        return Icons.water_rounded;
+        return LucideIcons.droplets;
       case 'mist':
-        return Icons.cloud_rounded;
+        return LucideIcons.cloudFog;
       case 'fan':
-        return Icons.air_rounded;
+        return LucideIcons.wind;
       case 'light':
-        return Icons.light_mode_rounded;
+        return LucideIcons.sun;
       case 'valve':
-        return Icons.toggle_on_rounded;
+        return LucideIcons.power;
       default:
-        return Icons.devices_other;
+        return LucideIcons.cpu;
     }
   }
 }

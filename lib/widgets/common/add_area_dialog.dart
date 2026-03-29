@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 
@@ -14,11 +15,11 @@ class _AddAreaDialogState extends State<AddAreaDialog> {
   final _formKey = GlobalKey<FormState>();
 
   final List<Map<String, dynamic>> _deviceTypes = [
-    {'type': 'pump', 'label': 'pump', 'icon': Icons.water_drop_rounded, 'checked': true},
-    {'type': 'fan', 'label': 'fan', 'icon': Icons.air_rounded, 'checked': true},
-    {'type': 'light', 'label': 'light', 'icon': Icons.lightbulb_outline_rounded, 'checked': false},
-    {'type': 'mist', 'label': 'mist', 'icon': Icons.cloud_queue_rounded, 'checked': false},
-    {'type': 'valve', 'label': 'valve', 'icon': Icons.settings_input_component_rounded, 'checked': false},
+    {'type': 'pump', 'label': 'pump', 'icon': LucideIcons.droplets, 'checked': true},
+    {'type': 'fan', 'label': 'fan', 'icon': LucideIcons.wind, 'checked': true},
+    {'type': 'light', 'label': 'light', 'icon': LucideIcons.lightbulb, 'checked': false},
+    {'type': 'mist', 'label': 'mist', 'icon': LucideIcons.cloud, 'checked': false},
+    {'type': 'valve', 'label': 'valve', 'icon': LucideIcons.settings, 'checked': false},
   ];
 
   @override

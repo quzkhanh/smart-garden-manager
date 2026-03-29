@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/garden_provider.dart';
 import '../../widgets/common/delete_area_dialog.dart';
 import '../../l10n/app_localizations.dart';
@@ -152,7 +153,7 @@ class AreaDetailScreen extends StatelessWidget {
                             garden.addDevice(areaId, result['name'], result['type']);
                           }
                         },
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                        icon: const Icon(LucideIcons.circlePlus, size: 20),
                         color: AppColors.primaryGreen,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -216,7 +217,7 @@ class AreaDetailScreen extends StatelessWidget {
                   : Colors.black.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.chevron_left_rounded, size: 24),
+            child: const Icon(LucideIcons.chevronLeft, size: 22),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -230,7 +231,7 @@ class AreaDetailScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
-                Icons.tune_rounded,
+                LucideIcons.slidersHorizontal,
                 size: 20,
                 color: AppColors.primaryGreen,
               ),

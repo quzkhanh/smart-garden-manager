@@ -20,11 +20,7 @@ class DeviceInfoUtil {
   static Future<DeviceInfoData> getDeviceData() async {
     final prefs = await SharedPreferences.getInstance();
     String? deviceId = prefs.getString('saved_device_id');
-    if (deviceId == null) {
-      deviceId = const Uuid().v4();
-      await prefs.setString('saved_device_id', deviceId);
-    }
-
+    
     String deviceName = 'Unknown Device';
     String platform = 'unknown';
 
@@ -39,12 +35,15 @@ class DeviceInfoUtil {
         switch (defaultTargetPlatform) {
           case TargetPlatform.android:
             final androidInfo = await deviceInfo.androidInfo;
-            deviceName =
-                '${androidInfo.manufacturer.toUpperCase()} ${androidInfo.model}';
+            // Build ID + Model + Serial (if available)
+            final stableId = 'and-${androidInfo.id}-${androidInfo.model}';
+            deviceId = stableId;
+            deviceName = '${androidInfo.manufacturer.toUpperCase()} ${androidInfo.model}';
             platform = 'mobile';
             break;
           case TargetPlatform.iOS:
             final iosInfo = await deviceInfo.iosInfo;
+            deviceId = iosInfo.identifierForVendor ?? deviceId;
             deviceName = iosInfo.name;
             platform = iosInfo.model.toLowerCase().contains("ipad")
                 ? 'tablet'
@@ -52,16 +51,19 @@ class DeviceInfoUtil {
             break;
           case TargetPlatform.windows:
             final windowsInfo = await deviceInfo.windowsInfo;
+            deviceId = 'win-${windowsInfo.computerName}';
             deviceName = windowsInfo.computerName;
             platform = 'web';
             break;
           case TargetPlatform.macOS:
             final macOsInfo = await deviceInfo.macOsInfo;
+            deviceId = 'mac-${macOsInfo.computerName}';
             deviceName = macOsInfo.computerName;
             platform = 'web';
             break;
           case TargetPlatform.linux:
             final linuxInfo = await deviceInfo.linuxInfo;
+            deviceId = 'lin-${linuxInfo.id}';
             deviceName = linuxInfo.name;
             platform = 'web';
             break;
@@ -71,6 +73,15 @@ class DeviceInfoUtil {
       }
     } catch (e) {
       debugPrint('Error getting device info: $e');
+    }
+
+    // Fallback if no stable ID was found and no saved ID exists
+    if (deviceId == null) {
+      deviceId = const Uuid().v4();
+      await prefs.setString('saved_device_id', deviceId);
+    } else {
+      // Sync it to prefs just in case we need it later
+      await prefs.setString('saved_device_id', deviceId);
     }
 
     return DeviceInfoData(

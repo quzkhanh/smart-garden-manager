@@ -105,6 +105,7 @@ class AppTheme {
       thickness: 1,
     ),
     switchTheme: SwitchThemeData(
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       thumbColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
         return AppColors.lightTextTertiary;
@@ -212,6 +213,7 @@ class AppTheme {
       thickness: 1,
     ),
     switchTheme: SwitchThemeData(
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       thumbColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
         return AppColors.darkTextTertiary;

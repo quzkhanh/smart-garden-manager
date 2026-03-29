@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_localizations.dart';
 
@@ -72,25 +73,25 @@ class SensorBar extends StatelessWidget {
     switch (type) {
       case 'temperature':
         return _SensorConfig(
-          icon: Icons.thermostat_rounded,
+          icon: LucideIcons.thermometer,
           color: AppColors.temperature,
           labelKey: 'temperature',
         );
       case 'air_humidity':
         return _SensorConfig(
-          icon: Icons.water_drop_outlined,
+          icon: LucideIcons.droplets,
           color: AppColors.humidity,
           labelKey: 'air_humidity',
         );
       case 'soil_moisture':
         return _SensorConfig(
-          icon: Icons.grass_rounded,
+          icon: LucideIcons.sprout,
           color: AppColors.soilMoisture,
           labelKey: 'soil_moisture',
         );
       default:
         return _SensorConfig(
-          icon: Icons.sensors,
+          icon: LucideIcons.gauge,
           color: AppColors.primaryGreen,
           labelKey: type,
         );

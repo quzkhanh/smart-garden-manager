@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/alert_provider.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../theme/app_colors.dart';
 import '../screens/login/login_screen.dart';
 import '../screens/login/otp_screen.dart';
 import '../screens/login/qr_login_screen.dart';
@@ -12,6 +15,7 @@ import '../screens/area_config/area_config_screen.dart';
 import '../screens/alerts/alerts_screen.dart';
 import '../screens/devices/devices_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -27,8 +31,11 @@ class AppRouter {
         final isLoginRoute = state.matchedLocation == '/login' ||
             state.matchedLocation == '/otp' ||
             state.matchedLocation == '/qr-login';
+        final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
         if (!isAuthenticated) {
+          // No auto-redirect to onboarding - start at login
+
           // Not authenticated
           if (authProvider.state == AuthState.otpSent ||
               authProvider.state == AuthState.verifying) {
@@ -38,7 +45,7 @@ class AppRouter {
             return state.matchedLocation == '/qr-login' ? null : '/qr-login';
           }
           // State is unauthenticated — always go to /login
-          if (state.matchedLocation != '/login') {
+          if (state.matchedLocation != '/login' && state.matchedLocation != '/onboarding') {
             return '/login';
           }
           return null;
@@ -55,6 +62,10 @@ class AppRouter {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/onboarding',
+          builder: (context, state) => const OnboardingScreen(),
         ),
         GoRoute(
           path: '/otp',
@@ -168,32 +179,39 @@ class _MainShellBody extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _NavItem(
-                  icon: Icons.home_rounded,
-                  label: _getNavLabel(context, 0),
-                  isSelected: currentIndex == 0,
-                  onTap: () => context.go('/'),
+                Expanded(
+                  child: _NavItem(
+                    icon: LucideIcons.home,
+                    label: _getNavLabel(context, 0),
+                    isSelected: currentIndex == 0,
+                    onTap: () => context.go('/'),
+                  ),
                 ),
-                _NavItem(
-                  icon: Icons.notifications_outlined,
-                  label: _getNavLabel(context, 1),
-                  isSelected: currentIndex == 1,
-                  badge: alertProvider.unreadCount,
-                  onTap: () => context.go('/alerts'),
+                Expanded(
+                  child: _NavItem(
+                    icon: LucideIcons.bell,
+                    label: _getNavLabel(context, 1),
+                    isSelected: currentIndex == 1,
+                    badge: alertProvider.unreadCount,
+                    onTap: () => context.go('/alerts'),
+                  ),
                 ),
-                _NavItem(
-                  icon: Icons.devices_rounded,
-                  label: _getNavLabel(context, 2),
-                  isSelected: currentIndex == 2,
-                  onTap: () => context.go('/devices'),
+                Expanded(
+                  child: _NavItem(
+                    icon: LucideIcons.shieldCheck,
+                    label: _getNavLabel(context, 2),
+                    isSelected: currentIndex == 2,
+                    onTap: () => context.go('/devices'),
+                  ),
                 ),
-                _NavItem(
-                  icon: Icons.settings_rounded,
-                  label: _getNavLabel(context, 3),
-                  isSelected: currentIndex == 3,
-                  onTap: () => context.go('/settings'),
+                Expanded(
+                  child: _NavItem(
+                    icon: LucideIcons.settings,
+                    label: _getNavLabel(context, 3),
+                    isSelected: currentIndex == 3,
+                    onTap: () => context.go('/settings'),
+                  ),
                 ),
               ],
             ),
@@ -204,18 +222,16 @@ class _MainShellBody extends StatelessWidget {
   }
 
   String _getNavLabel(BuildContext context, int index) {
-    // Simple label lookup
-    final locale = Localizations.localeOf(context);
-    final isVi = locale.languageCode == 'vi';
+    final l10n = AppLocalizations.of(context);
     switch (index) {
       case 0:
-        return isVi ? 'Trang chủ' : 'Home';
+        return l10n.t('home');
       case 1:
-        return isVi ? 'Cảnh báo' : 'Alerts';
+        return l10n.t('alerts');
       case 2:
-        return isVi ? 'Thiết bị' : 'Devices';
+        return l10n.t('nav_devices');
       case 3:
-        return isVi ? 'Cài đặt' : 'Settings';
+        return l10n.t('settings');
       default:
         return '';
     }
@@ -251,47 +267,75 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(icon, color: color, size: 24),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: isSelected ? const EdgeInsets.all(8) : EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: isSelected ? color.withValues(alpha: 0.1) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
                 if (badge > 0)
                   Positioned(
-                    right: -8,
-                    top: -4,
+                    right: isSelected ? -2 : -10,
+                    top: isSelected ? -2 : -6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
+                        horizontal: 4,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: AppColors.alertHigh,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF1E2128) : Colors.white,
+                          width: 1.5,
+                        ),
                       ),
                       child: Text(
                         '$badge',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: color,
+            AnimatedCrossFade(
+              firstChild: const SizedBox(width: double.infinity, height: 0),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ),
               ),
+              crossFadeState: isSelected ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
             ),
           ],
         ),

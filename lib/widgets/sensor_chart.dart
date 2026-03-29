@@ -19,17 +19,18 @@ class SensorChartCard extends StatefulWidget {
 
 class _SensorChartCardState extends State<SensorChartCard>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late PageController _pageController;
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _pageController = PageController();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -80,50 +81,71 @@ class _SensorChartCardState extends State<SensorChartCard>
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            height: 36,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              onTap: (_) => setState(() {}),
-              indicator: BoxDecoration(
-                color: tabs[_tabController.index].color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: tabs[_tabController.index].color.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              labelColor: tabs[_tabController.index].color,
-              unselectedLabelColor: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              labelPadding: EdgeInsets.zero,
-              tabs: tabs.map((t) => Tab(
-                height: 34,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(t.icon, size: 14),
-                    const SizedBox(width: 4),
-                    Flexible(child: Text(t.label, overflow: TextOverflow.ellipsis, maxLines: 1)),
-                  ],
-                ),
-              )).toList(),
+          // Toggle Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(tabs.length, (index) {
+                final t = tabs[index];
+                final isSelected = _currentIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(t.icon, size: 16, color: isSelected ? t.color : Colors.grey.shade600),
+                        if (isSelected) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            t.label, 
+                            style: TextStyle(
+                              color: t.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            )
+                          ),
+                        ],
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (selected) {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOutCubic,
+                        );
+                      }
+                    },
+                    backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                    selectedColor: t.color.withValues(alpha: 0.15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected ? t.color.withValues(alpha: 0.4) : Colors.transparent,
+                      )
+                    ),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  ),
+                );
+              }),
             ),
           ),
-          const SizedBox(height: 16),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: SizedBox(
-              key: ValueKey(_tabController.index),
-              height: 210,
-              child: _buildChart(tabs[_tabController.index]),
+          const SizedBox(height: 12),
+          // Swipable Charts
+          SizedBox(
+            height: 220,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: tabs.length,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+              },
+              itemBuilder: (context, index) {
+                return _buildChart(tabs[index]);
+              },
             ),
           ),
           const SizedBox(height: 8),

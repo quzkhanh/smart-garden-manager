@@ -3,11 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/area_config.dart';
+import '../../models/area.dart';
+import '../../models/automation_rule.dart';
 import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/delete_area_dialog.dart';
+import 'widgets/rule_builder_sheet.dart';
 import 'widgets/config_section_header.dart';
 import 'widgets/config_range_labels.dart';
 import 'widgets/config_time_button.dart';
@@ -141,6 +144,10 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final garden = Provider.of<GardenProvider>(context);
+    final area = garden.getArea(widget.areaId);
+
+    if (area == null) return const Scaffold(body: Center(child: Text('Khu vực không tồn tại')));
 
     return Scaffold(
       appBar: AppBar(
@@ -416,6 +423,102 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               ),
             ).animate().fadeIn(delay: 320.ms, duration: 400.ms),
 
+            const SizedBox(height: 32),
+
+            // ── Custom Automations ────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.t('custom_automations').toUpperCase(),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showRuleDialog(context, garden),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text(l10n.t('add_rule')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 340.ms),
+            
+            const SizedBox(height: 12),
+            
+            if (area.rules.isEmpty)
+              AppCard(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        Icon(Icons.auto_fix_high_rounded, size: 40, color: Colors.grey.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Chưa có quy tắc tự động nào',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ).animate().fadeIn(delay: 360.ms)
+            else
+              Column(
+                children: area.rules.map((rule) => AppCard(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: (rule.isEnabled ? AppColors.primaryGreen : Colors.grey).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          rule.conditions.any((c) => c.triggerType == RuleTriggerType.weather) 
+                              ? Icons.cloud_queue_rounded 
+                              : Icons.sensors_rounded,
+                          color: rule.isEnabled ? AppColors.primaryGreen : Colors.grey,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(rule.name, style: theme.textTheme.titleSmall),
+                            const SizedBox(height: 2),
+                            Text(
+                              'NẾU ${rule.conditions.length} điều kiện THÌ ${rule.actions.length} hành động',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: rule.isEnabled,
+                        onChanged: (val) => garden.updateRule(widget.areaId, rule.copyWith(isEnabled: val)),
+                        activeTrackColor: AppColors.primaryGreen,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                        onPressed: () => garden.deleteRule(widget.areaId, rule.id),
+                        color: Colors.red.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ).animate().fadeIn(delay: 360.ms),
+
             const SizedBox(height: 48),
 
             // ── Danger Zone ───────────────────────────────────────────────
@@ -472,6 +575,23 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
           garden.deleteArea(widget.areaId);
           Navigator.of(context).popUntil((route) => route.isFirst);
         },
+      ),
+    );
+  }
+
+  void _showRuleDialog(BuildContext context, GardenProvider garden, [AutomationRule? rule]) {
+    final area = garden.getArea(widget.areaId);
+    if (area == null) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => RuleBuilderSheet(
+        areaId: widget.areaId,
+        area: area,
+        garden: garden,
+        existingRule: rule,
       ),
     );
   }

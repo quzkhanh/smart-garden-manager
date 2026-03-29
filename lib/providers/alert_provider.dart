@@ -149,4 +149,10 @@ class AlertProvider extends ChangeNotifier {
       debugPrint('Error deleting read alerts: $e');
     }
   }
+
+  Future<void> refreshAlerts() async {
+    // Alerts are real-time, but manual refresh can provide user feedback
+    await Future.delayed(const Duration(milliseconds: 500));
+    notifyListeners();
+  }
 }

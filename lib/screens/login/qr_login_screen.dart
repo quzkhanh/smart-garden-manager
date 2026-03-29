@@ -82,29 +82,57 @@ class _QrLoginScreenState extends State<QrLoginScreen>
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 600;
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? AppColors.loginBackgroundGradientDark
-              : AppColors.loginBackgroundGradient,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          auth.cancelQrLogin();
+        }
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 22),
+            ),
+            onPressed: () {
+              auth.cancelQrLogin();
+              // Router will handle navigation back to /login because state changes to unauthenticated
+            },
+          ),
         ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Container(
-                constraints:
-                    BoxConstraints(maxWidth: isWide ? 440 : double.infinity),
-                padding: EdgeInsets.symmetric(horizontal: isWide ? 0 : 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Language switcher
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: const LanguageSwitcher(),
-                    ),
-                    const SizedBox(height: 40),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: isDark
+                ? AppColors.loginBackgroundGradientDark
+                : AppColors.loginBackgroundGradient,
+          ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Container(
+                  constraints:
+                      BoxConstraints(maxWidth: isWide ? 440 : double.infinity),
+                  padding: EdgeInsets.symmetric(horizontal: isWide ? 0 : 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Language switcher
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: const LanguageSwitcher(),
+                      ),
+                      const SizedBox(height: 20),
 
                     // Logo
                     Container(
@@ -332,6 +360,7 @@ class _QrLoginScreenState extends State<QrLoginScreen>
                     ),
                   ],
                 ),
+              ),
               ),
             ),
           ),

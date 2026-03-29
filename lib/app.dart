@@ -32,9 +32,11 @@ class _SmartGardenAppState extends State<SmartGardenApp> {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProxyProvider<AuthProvider, GardenProvider>(
+        ChangeNotifierProxyProvider2<AuthProvider, LocaleProvider, GardenProvider>(
           create: (_) => GardenProvider(),
-          update: (_, auth, prev) => prev!..updateAuth(auth),
+          update: (_, auth, locale, prev) => prev!
+            ..updateAuth(auth)
+            ..updateLocale(locale.locale.languageCode),
         ),
         ChangeNotifierProxyProvider<AuthProvider, AlertProvider>(
           create: (_) => AlertProvider(),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/alert_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
@@ -32,7 +34,9 @@ class AlertsScreen extends StatelessWidget {
                       children: [
                         Text(
                           l10n.t('alerts'),
-                          style: theme.textTheme.headlineLarge,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const Spacer(),
                         // Show delete-read button only on 'Read' tab
@@ -86,7 +90,7 @@ class AlertsScreen extends StatelessWidget {
                   Expanded(
                     child: alertProvider.alerts.isEmpty
                         ? EmptyState(
-                            icon: Icons.notifications_none_rounded,
+                            icon: LucideIcons.bell,
                             title: l10n.t('no_alerts'),
                           )
                         : ListView.builder(
@@ -160,7 +164,7 @@ class AlertsScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.delete_outline_rounded,
+          const Icon(LucideIcons.trash2,
               color: Colors.white, size: 22),
           const SizedBox(height: 4),
           Text(
@@ -205,7 +209,7 @@ class AlertsScreen extends StatelessWidget {
                   Navigator.pop(ctx);
                   alertProvider.deleteReadAlerts();
                 },
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                icon: const Icon(LucideIcons.trash2, size: 18),
                 label: Text(l10n.t('delete')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.alertHigh,
@@ -267,7 +271,7 @@ class _DeleteReadButton extends StatelessWidget {
     return TextButton.icon(
       onPressed: onTap,
       icon: const Icon(
-        Icons.delete_sweep_rounded,
+        LucideIcons.eraser,
         size: 16,
         color: AppColors.alertHigh,
       ),

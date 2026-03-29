@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/device_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
@@ -55,7 +56,7 @@ class DevicesScreen extends StatelessWidget {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      icon: const Icon(LucideIcons.scanQrCode, size: 20),
                       label: Text(l10n.t('scan_qr_login')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
@@ -72,7 +73,7 @@ class DevicesScreen extends StatelessWidget {
                   Expanded(
                     child: deviceProvider.devices.isEmpty
                         ? EmptyState(
-                            icon: Icons.devices_rounded,
+                            icon: LucideIcons.smartphone,
                             title: l10n.t('no_devices'),
                           )
                         : RefreshIndicator(
@@ -208,7 +209,7 @@ class _DeviceCard extends StatelessWidget {
                 ),
                 child: Icon(
                   _getPlatformIcon(device.platform),
-                  size: 26,
+                  size: 24,
                   color: device.isCurrentDevice
                       ? AppColors.primaryGreen
                       : theme.textTheme.bodyMedium?.color,
@@ -259,20 +260,20 @@ class _DeviceCard extends StatelessWidget {
                               height: 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: device.isOnline
+                                color: device.isOnline || device.isCurrentDevice
                                     ? AppColors.online
-                                    : AppColors.offline,
+                                    : (isDark ? Colors.white24 : Colors.black26),
                               ),
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              device.isOnline
-                                  ? l10n.t('online')
-                                  : l10n.t('offline_status'),
+                              device.isCurrentDevice
+                                  ? 'Trực tuyến (Thiết bị này)'
+                                  : (device.isOnline ? 'Trực tuyến' : 'Ngoại tuyến'),
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: device.isOnline
+                                color: device.isOnline || device.isCurrentDevice
                                     ? AppColors.online
-                                    : AppColors.offline,
+                                    : (isDark ? Colors.white60 : Colors.black54),
                                 fontWeight: FontWeight.w500,
                                 fontSize: 11,
                               ),
@@ -281,16 +282,49 @@ class _DeviceCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      l10n.t(device.platform),
-                      style: theme.textTheme.bodySmall,
+                    const SizedBox(height: 8),
+                    // Platform & Type info
+                    Row(
+                      children: [
+                        Icon(
+                          _getPlatformIcon(device.platform),
+                          size: 14,
+                          color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.t(device.platform),
+                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${l10n.t('last_active')}: ${_formatLastActive(device.lastActive, l10n)}',
-                      style: theme.textTheme.bodySmall,
+                    const SizedBox(height: 4),
+                    // Detailed time
+                    Row(
+                      children: [
+                        Icon(
+                          LucideIcons.clock,
+                          size: 14,
+                          color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${l10n.t('last_active')}: ${_formatLastActive(device.lastActive, l10n)}',
+                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+                        ),
+                      ],
                     ),
+                    if (!device.isCurrentDevice)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '(${device.lastActive.day}/${device.lastActive.month} ${device.lastActive.hour.toString().padLeft(2, '0')}:${device.lastActive.minute.toString().padLeft(2, '0')})',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 10,
+                            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -305,7 +339,7 @@ class _DeviceCard extends StatelessWidget {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: onLogout,
-                  icon: const Icon(Icons.logout_rounded, size: 16),
+                  icon: const Icon(LucideIcons.logOut, size: 16),
                   label: Text(l10n.t('logout_device')),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.alertHigh,
@@ -327,13 +361,13 @@ class _DeviceCard extends StatelessWidget {
   IconData _getPlatformIcon(String platform) {
     switch (platform) {
       case 'mobile':
-        return Icons.phone_iphone_rounded;
+        return LucideIcons.smartphone;
       case 'web':
-        return Icons.computer_rounded;
+        return LucideIcons.laptop;
       case 'tablet':
-        return Icons.tablet_mac_rounded;
+        return LucideIcons.tablet;
       default:
-        return Icons.devices_rounded;
+        return LucideIcons.cpu;
     }
   }
 
@@ -348,3 +382,4 @@ class _DeviceCard extends StatelessWidget {
     }
   }
 }
+

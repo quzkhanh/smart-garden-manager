@@ -21,7 +21,6 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: margin ?? const EdgeInsets.only(bottom: 12),
@@ -33,16 +32,6 @@ class AppCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: padding ?? const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: border ??
-                  Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.black.withValues(alpha: 0.06),
-                    width: 1,
-                  ),
-            ),
             child: child,
           ),
         ),

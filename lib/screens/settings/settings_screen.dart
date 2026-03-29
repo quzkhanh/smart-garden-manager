@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -28,7 +30,9 @@ class SettingsScreen extends StatelessWidget {
             // Header
             Text(
               l10n.t('settings'),
-              style: theme.textTheme.headlineLarge,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
 
@@ -45,7 +49,7 @@ class SettingsScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.person_rounded,
+                          LucideIcons.user,
                           color: Colors.white,
                           size: 24,
                         ),
@@ -107,7 +111,7 @@ class SettingsScreen extends StatelessWidget {
                             SnackBar(content: Text(l10n.t('copied'))),
                           );
                         },
-                        icon: const Icon(Icons.copy_rounded, size: 20),
+                        icon: const Icon(LucideIcons.copy, size: 20),
                         color: AppColors.primaryGreen,
                       ),
                     ],
@@ -137,7 +141,7 @@ class SettingsScreen extends StatelessWidget {
                     isSelected: localeProvider.isVietnamese,
                     onTap: () => localeProvider.setLocale(const Locale('vi')),
                   ),
-                  Divider(height: 1, indent: 56, color: theme.dividerColor.withOpacity(0.05)),
+                  Divider(height: 1, indent: 56, color: theme.dividerColor.withValues(alpha: 0.05)),
                   _LanguageOption(
                     flag: '🇺🇸',
                     label: l10n.t('english'),
@@ -164,26 +168,47 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _ThemeOption(
-                    icon: Icons.light_mode_rounded,
+                    icon: LucideIcons.sun,
                     label: l10n.t('light_mode'),
                     isSelected: settings.themeMode == ThemeMode.light,
                     onTap: () => settings.setThemeMode(ThemeMode.light),
                   ),
-                  Divider(height: 1, indent: 56, color: theme.dividerColor.withOpacity(0.05)),
+                  Divider(height: 1, indent: 56, color: theme.dividerColor.withValues(alpha: 0.05)),
                   _ThemeOption(
-                    icon: Icons.dark_mode_rounded,
+                    icon: LucideIcons.moon,
                     label: l10n.t('dark_mode'),
                     isSelected: settings.themeMode == ThemeMode.dark,
                     onTap: () => settings.setThemeMode(ThemeMode.dark),
                   ),
-                  Divider(height: 1, indent: 56, color: theme.dividerColor.withOpacity(0.05)),
+                  Divider(height: 1, indent: 56, color: theme.dividerColor.withValues(alpha: 0.05)),
                   _ThemeOption(
-                    icon: Icons.computer_rounded,
+                    icon: LucideIcons.monitor,
                     label: l10n.t('system_mode'),
                     isSelected: settings.themeMode == ThemeMode.system,
                     onTap: () => settings.setThemeMode(ThemeMode.system),
                   ),
                 ],
+              ),
+            ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+
+            const SizedBox(height: 24),
+
+            // Help & Guide
+            Text(
+              l10n.t('tutorial'),
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.textTheme.bodySmall?.color,
+                letterSpacing: 1.1,
+              ),
+            ).animate().fadeIn(delay: 250.ms),
+            const SizedBox(height: 8),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: _ThemeOption(
+                icon: LucideIcons.helpCircle,
+                label: l10n.t('tutorial'),
+                isSelected: false,
+                onTap: () => context.push('/onboarding'),
               ),
             ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
 
@@ -204,7 +229,7 @@ class SettingsScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.logout_rounded),
+                  const Icon(LucideIcons.logOut),
                   const SizedBox(width: 8),
                   Text(
                     l10n.t('logout'),
@@ -324,9 +349,9 @@ class _LanguageOption extends StatelessWidget {
             ),
             if (isSelected)
               const Icon(
-                Icons.circle,
+                LucideIcons.check,
                 color: AppColors.primaryGreen,
-                size: 12,
+                size: 16,
               ),
           ],
         ),
@@ -384,9 +409,9 @@ class _ThemeOption extends StatelessWidget {
             ),
             if (isSelected)
               const Icon(
-                Icons.circle,
+                LucideIcons.check,
                 color: AppColors.primaryGreen,
-                size: 12,
+                size: 16,
               ),
           ],
         ),

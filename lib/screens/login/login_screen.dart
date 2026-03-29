@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/auth_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/animated_error_dialog.dart';
 import '../../widgets/language_switcher.dart';
+import '../../widgets/theme_toggle_indicator.dart';
+import '../../providers/settings_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: AppColors.alertHigh),
+                const Icon(LucideIcons.alertTriangle, color: AppColors.alertHigh),
                 const SizedBox(width: 8),
                 Text(AppLocalizations.of(context).t('error')),
               ],
@@ -40,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('OK', style: TextStyle(color: AppColors.primaryGreen)),
+                child: const Text('OK', style: TextStyle(color: AppColors.primaryGreen)),
               ),
             ],
           ),
@@ -77,7 +81,15 @@ class _LoginScreenState extends State<LoginScreen> {
               // Language switcher at the very top
               Positioned(
                 top: 12,
-                right: isWide ? (screenWidth - 440) / 2 : 24,
+                left: isWide ? (screenWidth - 440) / 2 : 16,
+                child: const ThemeToggleIndicator()
+                    .animate()
+                    .fadeIn(duration: 400.ms),
+              ),
+              // Language switcher at the very top right
+              Positioned(
+                top: 12,
+                right: isWide ? (screenWidth - 440) / 2 : 16,
                 child: const LanguageSwitcher()
                     .animate()
                     .fadeIn(duration: 400.ms),
@@ -109,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.eco_rounded,
+                            LucideIcons.sprout,
                             color: Colors.white,
                             size: 42,
                           ),
@@ -170,8 +182,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(11),
                             ],
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
                             decoration: InputDecoration(
-                              hintText: l10n.t('phone_hint'),
+                              hintText: null,
                               prefixIcon: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 child: Row(
@@ -179,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: [
                                     const Text('🇻🇳', style: TextStyle(fontSize: 20)),
                                     const SizedBox(width: 8),
-                                    Text('+84', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+                                    Text('+84', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
                                     const SizedBox(width: 8),
                                     Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.3)),
                                     const SizedBox(width: 8),
@@ -216,18 +232,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           curve: Curves.easeOut,
                         ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-                    // QR Login link
-                    TextButton.icon(
-                      onPressed: () {
-                        auth.startQrLogin();
-                      },
-                      icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                      label: Text(l10n.t('login_qr')),
-                      style: TextButton.styleFrom(
-                        foregroundColor: theme.textTheme.bodyMedium?.color,
-                      ),
+                    // Navigation to QR or Tutorial
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            auth.startQrLogin();
+                          },
+                          icon: const Icon(LucideIcons.scanQrCode, size: 18),
+                          label: Text(l10n.t('login_qr')),
+                          style: TextButton.styleFrom(
+                            foregroundColor: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: () {
+                            context.push('/onboarding');
+                          },
+                          icon: const Icon(LucideIcons.helpCircle, size: 18),
+                          label: Text(l10n.t('tutorial')),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryGreen,
+                            textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
                       ],
                     ),
