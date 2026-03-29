@@ -22,6 +22,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isEmailMode = true; // Default to Email mode to save SMS quota
+  bool _isRegister = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
@@ -56,6 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -146,83 +156,223 @@ class _LoginScreenState extends State<LoginScreen> {
                         ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
                         const SizedBox(height: 40),
 
-                    // Phone input card
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.darkSurface
-                            : AppColors.lightSurface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
+                    // Input card
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Container(
+                        key: ValueKey(_isEmailMode),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.06),
+                              ? AppColors.darkSurface
+                              : AppColors.lightSurface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                              blurRadius: 20,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.t('phone_number'),
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(11),
-                            ],
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: null,
-                              prefixIcon: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text('🇻🇳', style: TextStyle(fontSize: 20)),
-                                    const SizedBox(width: 8),
-                                    Text('+84', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
-                                    const SizedBox(width: 8),
-                                    Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.3)),
-                                    const SizedBox(width: 8),
+                        child: _isEmailMode
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.t('email'),
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    decoration: const InputDecoration(
+                                      prefixIcon: Icon(LucideIcons.mail, size: 20),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    l10n.t('password'),
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                    controller: _passwordController,
+                                    obscureText: _obscurePassword,
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(LucideIcons.lock, size: 20),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye, size: 20),
+                                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isRegister) ...[
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Xác nhận mật khẩu',
+                                      style: theme.textTheme.titleSmall,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextField(
+                                      controller: _confirmPasswordController,
+                                      obscureText: _obscureConfirmPassword,
+                                      decoration: InputDecoration(
+                                        prefixIcon: const Icon(LucideIcons.checkCircle, size: 20),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(_obscureConfirmPassword ? LucideIcons.eyeOff : LucideIcons.eye, size: 20),
+                                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton(
+                                        onPressed: () {
+                                          context.push('/forgot-password');
+                                        },
+                                        child: Text(
+                                          'Quên mật khẩu?',
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: AppColors.primaryGreen,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ],
-                                ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: Checkbox(
+                                          value: _isRegister,
+                                          onChanged: (val) {
+                                            setState(() {
+                                              _isRegister = val ?? false;
+                                              // Clear confirm box when toggling
+                                              _confirmPasswordController.clear();
+                                            });
+                                          },
+                                          activeColor: AppColors.primaryGreen,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _isRegister = !_isRegister;
+                                            _confirmPasswordController.clear();
+                                          });
+                                        },
+                                        child: Text(
+                                          l10n.t('register'),
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: AppColors.primaryGreen,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  AppButton(
+                                    text: _isRegister ? l10n.t('register') : l10n.t('login'),
+                                    isLoading: auth.isLoading,
+                                    onPressed: () async {
+                                      final email = _emailController.text.trim();
+                                      final password = _passwordController.text.trim();
+                                      final confirm = _confirmPasswordController.text.trim();
+                                      
+                                      if (email.isEmpty || password.isEmpty) return;
+
+                                      if (_isRegister && password != confirm) {
+                                        AnimatedErrorDialog.show(
+                                          context, 
+                                          title: "Lỗi đăng ký", 
+                                          message: "Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại.",
+                                        );
+                                        return;
+                                      }
+
+                                      await auth.loginWithEmail(email, password, isRegister: _isRegister);
+                                      if (auth.lastError.isNotEmpty && context.mounted) {
+                                        AnimatedErrorDialog.show(
+                                          context, 
+                                          title: "Lỗi đăng nhập", 
+                                          message: auth.lastError,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.t('phone_number'),
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(11),
+                                    ],
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: null,
+                                      prefixIcon: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('🇻🇳', style: TextStyle(fontSize: 20)),
+                                            const SizedBox(width: 8),
+                                            Text('+84', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                                            const SizedBox(width: 8),
+                                            Container(width: 1, height: 20, color: Colors.grey.withValues(alpha: 0.3)),
+                                            const SizedBox(width: 8),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  AppButton(
+                                    text: l10n.t('send_otp'),
+                                    isLoading: auth.isLoading,
+                                    onPressed: () async {
+                                      final phone = _phoneController.text.trim();
+                                      if (phone.isNotEmpty) {
+                                        await auth.sendOtp(phone);
+                                        if (auth.lastError.isNotEmpty && context.mounted) {
+                                          AnimatedErrorDialog.show(
+                                            context, 
+                                            title: "Lỗi đăng nhập", 
+                                            message: auth.lastError,
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          AppButton(
-                            text: l10n.t('send_otp'),
-                            isLoading: auth.isLoading,
-                            onPressed: () async {
-                              final phone = _phoneController.text.trim();
-                              if (phone.isNotEmpty) {
-                                await auth.sendOtp(phone);
-                                if (auth.lastError.isNotEmpty && context.mounted) {
-                                  AnimatedErrorDialog.show(
-                                    context, 
-                                    title: "Lỗi đăng nhập", 
-                                    message: auth.lastError,
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                        ],
                       ),
                     ).animate().fadeIn(delay: 400.ms, duration: 500.ms).slideY(
                           begin: 0.1,
@@ -234,10 +384,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Navigation to QR or Tutorial
+                    // Navigation to Alternate Login, QR, or Tutorial
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isEmailMode = !_isEmailMode;
+                            });
+                          },
+                          icon: Icon(_isEmailMode ? LucideIcons.phone : LucideIcons.mail, size: 18),
+                          label: Text(_isEmailMode ? l10n.t('login_phone') : l10n.t('login_email')),
+                          style: TextButton.styleFrom(
+                            foregroundColor: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: () {
                             auth.startQrLogin();

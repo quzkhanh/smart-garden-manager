@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_card.dart';
@@ -21,6 +22,7 @@ class SettingsScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final settings = context.watch<SettingsProvider>();
     final localeProvider = context.watch<LocaleProvider>();
+    final garden = context.watch<GardenProvider>();
 
     return Scaffold(
       body: SafeArea(
@@ -116,6 +118,53 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  
+                  // Area IDs Display
+                  if (garden.areas.isNotEmpty) ...garden.areas.map((area) => Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(height: 1),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Mã vườn (${area.name})', // Custom text, no l10n string guaranteed
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  area.id,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontFamily: 'monospace',
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: area.id));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.t('copied'))),
+                              );
+                            },
+                            icon: const Icon(LucideIcons.copy, size: 20),
+                            color: AppColors.primaryGreen,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )),
                 ],
               ),
             ).animate().fadeIn(delay: 100.ms, duration: 400.ms),

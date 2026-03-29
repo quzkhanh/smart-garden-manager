@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../screens/login/login_screen.dart';
 import '../screens/login/otp_screen.dart';
 import '../screens/login/qr_login_screen.dart';
+import '../screens/login/forgot_password_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/area_detail/area_detail_screen.dart';
 import '../screens/area_config/area_config_screen.dart';
@@ -30,7 +31,8 @@ class AppRouter {
         final isAuthenticated = authProvider.isAuthenticated;
         final isLoginRoute = state.matchedLocation == '/login' ||
             state.matchedLocation == '/otp' ||
-            state.matchedLocation == '/qr-login';
+            state.matchedLocation == '/qr-login' ||
+            state.matchedLocation == '/forgot-password';
         final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
         if (!isAuthenticated) {
@@ -45,7 +47,9 @@ class AppRouter {
             return state.matchedLocation == '/qr-login' ? null : '/qr-login';
           }
           // State is unauthenticated — always go to /login
-          if (state.matchedLocation != '/login' && state.matchedLocation != '/onboarding') {
+          if (state.matchedLocation != '/login' && 
+              state.matchedLocation != '/onboarding' && 
+              state.matchedLocation != '/forgot-password') {
             return '/login';
           }
           return null;
@@ -74,6 +78,10 @@ class AppRouter {
         GoRoute(
           path: '/qr-login',
           builder: (context, state) => const QrLoginScreen(),
+        ),
+        GoRoute(
+          path: '/forgot-password',
+          builder: (context, state) => const ForgotPasswordScreen(),
         ),
 
         GoRoute(

@@ -190,6 +190,91 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithEmail(String email, String password, {bool isRegister = false}) async {
+    _isLoading = true;
+    _lastError = '';
+    notifyListeners();
+
+    try {
+      UserCredential credential;
+      if (isRegister) {
+        credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      } else {
+        credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      }
+      
+      final user = credential.user;
+      if (user != null) {
+        await _saveDeviceLoginInfo(user.uid);
+      }
+      _state = AuthState.authenticated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'user-not-found':
+            _lastError = 'Tài khoản không tồn tại.';
+            break;
+          case 'wrong-password':
+            _lastError = 'Mật khẩu không chính xác.';
+            break;
+          case 'email-already-in-use':
+            _lastError = 'Email này đã được đăng ký.';
+            break;
+          case 'invalid-email':
+            _lastError = 'Email không hợp lệ.';
+            break;
+          case 'weak-password':
+            _lastError = 'Mật khẩu quá yếu (cần tối thiểu 6 ký tự).';
+            break;
+          case 'invalid-credential':
+            _lastError = 'Email hoặc mật khẩu không chính xác.';
+            break;
+          default:
+            _lastError = e.message ?? 'Đã có lỗi xảy ra.';
+        }
+      } else {
+        _lastError = 'Lỗi không xác định: ${e.toString()}';
+      }
+      notifyListeners();
+      debugPrint('Email Auth Failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _isLoading = true;
+    _lastError = '';
+    notifyListeners();
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'user-not-found':
+            _lastError = 'Không tìm thấy tài khoản với email này.';
+            break;
+          case 'invalid-email':
+            _lastError = 'Email không hợp lệ.';
+            break;
+          default:
+            _lastError = e.message ?? 'Đã có lỗi xảy ra.';
+        }
+      } else {
+        _lastError = 'Lỗi gửi yêu cầu: $e';
+      }
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> startQrLogin() async {
     _state = AuthState.qrWaiting;
     _isLoading = false;
