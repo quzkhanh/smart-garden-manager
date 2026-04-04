@@ -2,7 +2,7 @@
  * Smart Garden IoT Controller (ESP32) - TÍCH HỢP PHẦN CỨNG BẠN BÈ
  * 
  * Features:
- * 1. WiFiManager: Config WiFi
+ * 1. WiFiManager: Config WiFi + Area ID + User UID (lưu NVS)
  * 2. Màn hình TFT cấu hình offline (ST7789)
  * 3. Bấm nút cứng -> Relay đổi trạng thái -> Đồng bộ Cloud
  * 4. Nhận lệnh từ Cloud -> Đổi trạng thái Relay
@@ -14,6 +14,7 @@
 #include <Firebase_ESP_Client.h>
 #include <DHT.h>
 #include <WiFiManager.h>
+#include <Preferences.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
@@ -51,6 +52,11 @@ FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig fb_config;
 WiFiManager wm;
+Preferences preferences;
+
+// --- NVS-stored parameters ---
+String nvsAreaId = "";
+String nvsUserUid = "";
 
 unsigned long lastSensorUpdate = 0;
 unsigned long lastDevicePoll = 0;
@@ -68,9 +74,71 @@ float currentTemp = 0.0;
 float currentHumi = 0.0;
 int currentSoil = 0;
 
+// WiFiManager custom parameter callbacks
+bool shouldSaveConfig = false;
+
+void saveConfigCallback() {
+  shouldSaveConfig = true;
+}
+
+// === NVS Helper Functions ===
+
+void loadConfigFromNVS() {
+  preferences.begin("garden", true); // read-only
+  nvsAreaId = preferences.getString("area_id", "");
+  nvsUserUid = preferences.getString("user_uid", "");
+  preferences.end();
+  
+  Serial.println("=== NVS Config ===");
+  Serial.println("Area ID: " + nvsAreaId);
+  Serial.println("User UID: " + nvsUserUid);
+}
+
+void saveConfigToNVS(const char* areaId, const char* userUid) {
+  preferences.begin("garden", false); // read-write
+  preferences.putString("area_id", areaId);
+  preferences.putString("user_uid", userUid);
+  preferences.end();
+  
+  nvsAreaId = String(areaId);
+  nvsUserUid = String(userUid);
+  
+  Serial.println("=== Saved to NVS ===");
+  Serial.println("Area ID: " + nvsAreaId);
+  Serial.println("User UID: " + nvsUserUid);
+}
+
+bool isConfigValid() {
+  return nvsAreaId.length() > 0 && nvsUserUid.length() > 0;
+}
+
 void updateDisplay() {
   tft.fillScreen(ST77XX_BLACK);
   tft.setTextSize(2);
+  
+  // Kiểm tra xem đã cấu hình chưa
+  if (!isConfigValid()) {
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setCursor(10, 40);
+    tft.println("SETUP REQUIRED");
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(10, 80);
+    tft.println("Hold BOOT 5s to");
+    tft.setCursor(10, 95);
+    tft.println("open WiFi portal.");
+    tft.setCursor(10, 120);
+    tft.println("Connect to WiFi:");
+    tft.setTextColor(ST77XX_CYAN);
+    tft.setCursor(10, 140);
+    tft.println("SmartGarden_Setup");
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(10, 165);
+    tft.println("Then fill Area ID");
+    tft.setCursor(10, 180);
+    tft.println("and User UID.");
+    return;
+  }
   
   // Tiêu đề
   tft.setTextColor(ST77XX_YELLOW);
@@ -107,9 +175,9 @@ void applyHardwareRelay() {
 
 // Ghi dữ liệu cảm biến (Fix cấu trúc JSON cho Firestore REST API)
 void updateSensors(float t, float h, int soil) {
-  if (!Firebase.ready()) return;
+  if (!Firebase.ready() || !isConfigValid()) return;
 
-  String path = "users/" + String(USER_UID) + "/areas/" + String(AREA_ID);
+  String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
   
   // Tạo JSON đúng chuẩn REST API của Firestore Document (mapValue -> fields -> ...)
   FirebaseJson json;
@@ -150,8 +218,8 @@ void updateSensors(float t, float h, int soil) {
 
 // Đẩy trạng thái relay hiện tại (nếu nút bấm cứng bị nhấn) lên Cloud
 void syncRelaysToCloud() {
-  if (!Firebase.ready()) return;
-  String path = "users/" + String(USER_UID) + "/areas/" + String(AREA_ID);
+  if (!Firebase.ready() || !isConfigValid()) return;
+  String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
   
   // 1. Phải GetDocument trước để lấy ID, Name của Devices về, tránh ghi đè làm mất Info
   if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), "devices")) {
@@ -195,9 +263,9 @@ void syncRelaysToCloud() {
 }
 
 void pollDevices() {
-  if (!Firebase.ready() || needsCloudDeviceSync) return; // Nếu đang chờ upload thì không được ghi đè tải xuống
+  if (!Firebase.ready() || needsCloudDeviceSync || !isConfigValid()) return;
 
-  String path = "users/" + String(USER_UID) + "/areas/" + String(AREA_ID);
+  String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
   if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), "devices")) {
     FirebaseJson &json = fbdo.jsonObject();
     FirebaseJsonData data;
@@ -291,7 +359,46 @@ void setup() {
   tft.setCursor(20, 100);
   tft.println("WIFI CONNECTING...");
 
-  wm.autoConnect("SmartGarden_Setup"); 
+  // === Load cấu hình từ NVS ===
+  loadConfigFromNVS();
+
+  // === WiFiManager với custom parameters ===
+  // Tạo 2 trường custom: Area ID và User UID
+  WiFiManagerParameter custom_area_id("area_id", "Area ID (Firestore)", nvsAreaId.c_str(), 64);
+  WiFiManagerParameter custom_user_uid("user_uid", "User UID (Firebase Auth)", nvsUserUid.c_str(), 64);
+  
+  wm.addParameter(&custom_area_id);
+  wm.addParameter(&custom_user_uid);
+  wm.setSaveParamsCallback(saveConfigCallback);
+  
+  // Hiển thị hướng dẫn trên portal
+  wm.setCustomHeadElement(
+    "<style>"
+    "body{background:#1a1a2e;color:#e0e0e0;font-family:'Segoe UI',sans-serif;}"
+    ".wrap{max-width:400px;margin:0 auto;}"
+    "input[type='text'],input[type='password']{background:#16213e;border:1px solid #0f3460;color:#e0e0e0;padding:10px;border-radius:8px;width:100%;box-sizing:border-box;}"
+    "button,.D{background:#2ecc71;border:none;color:#fff;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:16px;width:100%;margin:4px 0;}"
+    "button:hover,.D:hover{background:#27ae60;}"
+    ".msg{background:#16213e;border-left:4px solid #2ecc71;padding:10px;margin:10px 0;border-radius:4px;font-size:13px;}"
+    "</style>"
+    "<div class='msg'>🌱 <b>Smart Garden Setup</b><br>"
+    "Nhập WiFi, Area ID và User UID.<br>"
+    "Lấy Area ID và UID từ App hoặc Firestore Console.</div>"
+  );
+
+  wm.autoConnect("SmartGarden_Setup");
+  
+  // Nếu portal đã được mở và user nhấn Save → lưu NVS
+  if (shouldSaveConfig) {
+    saveConfigToNVS(custom_area_id.getValue(), custom_user_uid.getValue());
+    Serial.println("Config saved from WiFi portal!");
+  }
+
+  // Kiểm tra config hợp lệ
+  if (!isConfigValid()) {
+    Serial.println("WARNING: Area ID or User UID is empty!");
+    Serial.println("Hold BOOT button 5s to re-open WiFi portal.");
+  }
   
   fb_config.api_key = FIREBASE_API_KEY;
   fb_config.database_url = FIREBASE_URL;
@@ -308,11 +415,25 @@ void setup() {
 
 
 void loop() {
-  // Check for reset button (hold 5s)
+  // Check for reset button (hold 5s) → Reset WiFi + mở lại portal
   if (digitalRead(RESET_PIN) == LOW) {
     if (buttonDownTime == 0) buttonDownTime = millis();
-    else if (millis() - buttonDownTime > 5000) { wm.resetSettings(); ESP.restart(); }
+    else if (millis() - buttonDownTime > 5000) { 
+      Serial.println("Resetting WiFi settings and reopening portal...");
+      wm.resetSettings(); 
+      ESP.restart(); 
+    }
   } else buttonDownTime = 0;
+
+  // Nếu chưa cấu hình → không chạy logic chính
+  if (!isConfigValid()) {
+    if (millis() - lastDisplayUpdate > 5000) {
+      lastDisplayUpdate = millis();
+      updateDisplay(); // Hiển thị hướng dẫn setup
+    }
+    delay(100);
+    return;
+  }
 
   // Quét phím cơ mượt mà
   checkPhysicalButtons();
