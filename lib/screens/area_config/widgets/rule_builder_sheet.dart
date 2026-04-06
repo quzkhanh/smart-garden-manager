@@ -63,7 +63,16 @@ class _RuleBuilderSheetState extends State<RuleBuilderSheet> {
   }
 
   void _saveRule() {
-    if (_nameController.text.trim().isEmpty) return;
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('Vui lòng nhập tên quy tắc')),
+          backgroundColor: AppColors.alertHigh,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
     final rule = AutomationRule(
       id: widget.existingRule?.id ?? 'rule_${DateTime.now().millisecondsSinceEpoch}',
@@ -206,6 +215,14 @@ class _RuleBuilderSheetState extends State<RuleBuilderSheet> {
                                   actionOn: true,
                                 ));
                               });
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(AppLocalizations.of(context).t('Khu vực này chưa có thiết bị nào. Vui lòng thêm thiết bị trước.')),
+                                  backgroundColor: AppColors.alertHigh,
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
                             }
                           },
                           icon: const Icon(Icons.add_rounded, size: 18),
@@ -222,7 +239,26 @@ class _RuleBuilderSheetState extends State<RuleBuilderSheet> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              if (_conditions.isEmpty || _actions.isEmpty) return;
+              if (_conditions.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(AppLocalizations.of(context).t('Vui lòng thêm ít nhất 1 điều kiện')),
+                    backgroundColor: AppColors.alertHigh,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+              if (_actions.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(AppLocalizations.of(context).t('Vui lòng thêm ít nhất 1 hành động')),
+                    backgroundColor: AppColors.alertHigh,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
               _saveRule();
             },
             style: ElevatedButton.styleFrom(
