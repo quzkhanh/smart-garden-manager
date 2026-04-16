@@ -33,7 +33,6 @@ class AppRouter {
             state.matchedLocation == '/otp' ||
             state.matchedLocation == '/qr-login' ||
             state.matchedLocation == '/forgot-password';
-        final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
         if (!isAuthenticated) {
           // No auto-redirect to onboarding - start at login

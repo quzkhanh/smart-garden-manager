@@ -80,7 +80,6 @@ class WeatherService {
       }
       return [];
     } catch (e) {
-      // ignore_for_file: avoid_print
       print('Error fetching forecast: $e');
       return [];
     }

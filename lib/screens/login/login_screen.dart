@@ -11,7 +11,6 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/animated_error_dialog.dart';
 import '../../widgets/language_switcher.dart';
 import '../../widgets/theme_toggle_indicator.dart';
-import '../../providers/settings_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

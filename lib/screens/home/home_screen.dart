@@ -8,7 +8,6 @@ import '../../providers/alert_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/area_card.dart';
-import '../../widgets/common/loading_skeleton.dart';
 import '../../widgets/common/add_area_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,15 +18,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _showWeatherAddress = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
     final alertProvider = context.watch<AlertProvider>();
-    final isDark = theme.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 800;
     final isMedium = screenWidth > 600;
@@ -319,20 +315,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (hour >= 12 && hour < 17) return l10n.t('good_afternoon');
     if (hour >= 17 && hour < 21) return l10n.t('good_evening');
     return l10n.t('good_night');
-  }
-
-  String _getWeatherStatus(BuildContext context, dynamic weather) {
-    final l10n = AppLocalizations.of(context);
-    if (weather == null) return l10n.t('my_garden');
-    
-    final condition = weather.condition.toLowerCase();
-    
-    if (condition.contains('sun') || condition.contains('clear')) return l10n.t('weather_sunny');
-    if (condition.contains('cloud')) return l10n.t('weather_cloudy');
-    if (condition.contains('rain')) return l10n.t('weather_rainy');
-    if (condition.contains('storm')) return l10n.t('weather_stormy');
-    
-    return l10n.t('weather_clear');
   }
 
   IconData _getWeatherIcon(dynamic weather) {

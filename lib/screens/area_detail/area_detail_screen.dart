@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../providers/garden_provider.dart';
-import '../../widgets/common/delete_area_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/sensor_bar.dart';
@@ -301,19 +300,6 @@ class AreaDetailScreen extends StatelessWidget {
     if (duration != null) {
       garden.setDeviceTimer(areaId, deviceId, duration);
     }
-  }
-
-  void _confirmDeleteArea(BuildContext context, GardenProvider garden) {
-    showDialog(
-      context: context,
-      builder: (ctx) => DeleteAreaDialog(
-        areaName: garden.getArea(areaId)?.name ?? '',
-        onConfirm: () {
-          garden.deleteArea(areaId);
-          context.pop(); // Quay lại trang chủ
-        },
-      ),
-    );
   }
 
   void _confirmDeleteDevice(BuildContext context, GardenProvider garden, String deviceId) {

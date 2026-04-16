@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/area_config.dart';
-import '../../models/area.dart';
 import '../../models/automation_rule.dart';
 import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
