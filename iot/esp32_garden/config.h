@@ -3,10 +3,13 @@
  * 
  * Generated for your project: smart-garden-manager
  * 
- * NOTE: AREA_ID và USER_UID không cần điền ở đây nữa!
- * Chúng được cấu hình qua WiFi Manager portal và lưu vào bộ nhớ NVS.
+ * NOTE: Email, Password và Area ID được cấu hình qua WiFi Manager portal!
  * Khi ESP32 khởi động lần đầu (hoặc sau reset WiFi), truy cập
- * portal "SmartGarden_Setup" và điền Area ID + User UID tại đó.
+ * portal "SmartGarden_Setup" và điền:
+ *   - WiFi nhà bạn
+ *   - Email + Password tài khoản trên App
+ *   - Area ID từ màn hình App
+ * UID sẽ được tự động lấy từ Firebase Auth.
  */
 
 // 1. WiFi Settings (Optional Fallback)
@@ -19,12 +22,6 @@
 #define FIREBASE_URL "https://smart-garden-manager.firebaseio.com"
 #define FIREBASE_PROJECT_ID "smart-garden-manager"
 
-// 3. User Authentication
-// Firebase Console > Authentication > Users 
-// để tạo một tài khoản email/mật khẩu riêng cho thiết bị này.
-#define USER_EMAIL "hquan04hhbg@gmail.com"
-#define USER_PASSWORD "quanparkgiang"
-
-// 4. Sensor Thresholds
+// 3. Sensor Thresholds
 #define SOIL_MOISTURE_MIN 35
 #define SOIL_MOISTURE_MAX 75

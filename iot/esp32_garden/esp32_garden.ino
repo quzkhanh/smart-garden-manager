@@ -57,6 +57,8 @@ Preferences preferences;
 // --- NVS-stored parameters ---
 String nvsAreaId = "";
 String nvsUserUid = "";
+String nvsEmail = "";
+String nvsPassword = "";
 
 unsigned long lastSensorUpdate = 0;
 unsigned long lastDevicePoll = 0;
@@ -87,29 +89,43 @@ void loadConfigFromNVS() {
   preferences.begin("garden", true); // read-only
   nvsAreaId = preferences.getString("area_id", "");
   nvsUserUid = preferences.getString("user_uid", "");
+  nvsEmail = preferences.getString("email", "");
+  nvsPassword = preferences.getString("password", "");
   preferences.end();
   
   Serial.println("=== NVS Config ===");
   Serial.println("Area ID: " + nvsAreaId);
+  Serial.println("Email: " + nvsEmail);
   Serial.println("User UID: " + nvsUserUid);
 }
 
-void saveConfigToNVS(const char* areaId, const char* userUid) {
+void saveConfigToNVS(const char* areaId, const char* email, const char* password) {
   preferences.begin("garden", false); // read-write
   preferences.putString("area_id", areaId);
-  preferences.putString("user_uid", userUid);
+  preferences.putString("email", email);
+  preferences.putString("password", password);
+  // UID will be auto-filled after Firebase Auth succeeds
   preferences.end();
   
   nvsAreaId = String(areaId);
-  nvsUserUid = String(userUid);
+  nvsEmail = String(email);
+  nvsPassword = String(password);
   
   Serial.println("=== Saved to NVS ===");
   Serial.println("Area ID: " + nvsAreaId);
-  Serial.println("User UID: " + nvsUserUid);
+  Serial.println("Email: " + nvsEmail);
+}
+
+void saveUidToNVS(const char* uid) {
+  preferences.begin("garden", false);
+  preferences.putString("user_uid", uid);
+  preferences.end();
+  nvsUserUid = String(uid);
+  Serial.println("UID saved to NVS: " + nvsUserUid);
 }
 
 bool isConfigValid() {
-  return nvsAreaId.length() > 0 && nvsUserUid.length() > 0;
+  return nvsAreaId.length() > 0 && nvsEmail.length() > 0 && nvsPassword.length() > 0;
 }
 
 void updateDisplay() {
@@ -134,9 +150,9 @@ void updateDisplay() {
     tft.println("SmartGarden_Setup");
     tft.setTextColor(ST77XX_WHITE);
     tft.setCursor(10, 165);
-    tft.println("Then fill Area ID");
+    tft.println("Then fill Email,");
     tft.setCursor(10, 180);
-    tft.println("and User UID.");
+    tft.println("Password & AreaID.");
     return;
   }
   
@@ -178,6 +194,7 @@ void updateSensors(float t, float h, int soil) {
   if (!Firebase.ready() || !isConfigValid()) return;
 
   String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
+  Serial.println(">>> Updating sensors to: " + path);
   
   // Tạo JSON đúng chuẩn REST API của Firestore Document (mapValue -> fields -> ...)
   FirebaseJson json;
@@ -205,7 +222,11 @@ void updateSensors(float t, float h, int soil) {
   json.set("fields/sensors/arrayValue/values", sensorsArr);
 
   // Ghi Firestore
-  Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), json.raw(), "sensors");
+  if (Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), json.raw(), "sensors")) {
+    Serial.println("OK: Sensors updated!");
+  } else {
+    Serial.println("FAIL updateSensors: " + fbdo.errorReason());
+  }
   
   // History
   FirebaseJson hist;
@@ -213,13 +234,18 @@ void updateSensors(float t, float h, int soil) {
   hist.set("fields/value/doubleValue", t);
   hist.set("fields/timestamp/integerValue", String((uint64_t)Firebase.getCurrentTime() * 1000));
   String h_path = path + "/history";
-  Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", h_path.c_str(), hist.raw());
+  if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", h_path.c_str(), hist.raw())) {
+    Serial.println("OK: History saved!");
+  } else {
+    Serial.println("FAIL history: " + fbdo.errorReason());
+  }
 }
 
 // Đẩy trạng thái relay hiện tại (nếu nút bấm cứng bị nhấn) lên Cloud
 void syncRelaysToCloud() {
   if (!Firebase.ready() || !isConfigValid()) return;
   String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
+  Serial.println(">>> Syncing relays to: " + path);
   
   // 1. Phải GetDocument trước để lấy ID, Name của Devices về, tránh ghi đè làm mất Info
   if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), "devices")) {
@@ -256,9 +282,16 @@ void syncRelaysToCloud() {
        FirebaseJson patchJson;
        patchJson.set("fields/devices/arrayValue/values", devices);
        
-       Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), patchJson.raw(), "devices");
-       Serial.println("Synced physical button press to Cloud!");
+       if (Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), patchJson.raw(), "devices")) {
+         Serial.println("OK: Synced relays to Cloud!");
+       } else {
+         Serial.println("FAIL syncRelays patch: " + fbdo.errorReason());
+       }
+    } else {
+      Serial.println("WARN: No devices array found in document");
     }
+  } else {
+    Serial.println("FAIL syncRelays get: " + fbdo.errorReason());
   }
 }
 
@@ -298,6 +331,8 @@ void pollDevices() {
          updateDisplay();
        }
     }
+  } else {
+    Serial.println("FAIL pollDevices: " + fbdo.errorReason());
   }
 }
 
@@ -363,12 +398,14 @@ void setup() {
   loadConfigFromNVS();
 
   // === WiFiManager với custom parameters ===
-  // Tạo 2 trường custom: Area ID và User UID
-  WiFiManagerParameter custom_area_id("area_id", "Area ID (Firestore)", nvsAreaId.c_str(), 64);
-  WiFiManagerParameter custom_user_uid("user_uid", "User UID (Firebase Auth)", nvsUserUid.c_str(), 64);
+  // 3 trường: Area ID + Email + Password (UID tự lấy sau khi đăng nhập)
+  WiFiManagerParameter custom_area_id("area_id", "Area ID (from App)", nvsAreaId.c_str(), 64);
+  WiFiManagerParameter custom_email("email", "Firebase Email", nvsEmail.c_str(), 64);
+  WiFiManagerParameter custom_password("password", "Firebase Password", nvsPassword.c_str(), 64);
   
   wm.addParameter(&custom_area_id);
-  wm.addParameter(&custom_user_uid);
+  wm.addParameter(&custom_email);
+  wm.addParameter(&custom_password);
   wm.setSaveParamsCallback(saveConfigCallback);
   
   // Hiển thị hướng dẫn trên portal
@@ -382,33 +419,62 @@ void setup() {
     ".msg{background:#16213e;border-left:4px solid #2ecc71;padding:10px;margin:10px 0;border-radius:4px;font-size:13px;}"
     "</style>"
     "<div class='msg'>🌱 <b>Smart Garden Setup</b><br>"
-    "Nhập WiFi, Area ID và User UID.<br>"
-    "Lấy Area ID và UID từ App hoặc Firestore Console.</div>"
+    "1. Nhap WiFi nha ban.<br>"
+    "2. Nhap Email va Password tai khoan tren App.<br>"
+    "3. Nhap Area ID tu man hinh App (bam vao khu vuon).</div>"
   );
 
   wm.autoConnect("SmartGarden_Setup");
   
   // Nếu portal đã được mở và user nhấn Save → lưu NVS
   if (shouldSaveConfig) {
-    saveConfigToNVS(custom_area_id.getValue(), custom_user_uid.getValue());
+    saveConfigToNVS(custom_area_id.getValue(), custom_email.getValue(), custom_password.getValue());
     Serial.println("Config saved from WiFi portal!");
   }
 
   // Kiểm tra config hợp lệ
   if (!isConfigValid()) {
-    Serial.println("WARNING: Area ID or User UID is empty!");
+    Serial.println("WARNING: Area ID or Email/Password is empty!");
     Serial.println("Hold BOOT button 5s to re-open WiFi portal.");
   }
   
   fb_config.api_key = FIREBASE_API_KEY;
   fb_config.database_url = FIREBASE_URL;
-  auth.user.email = USER_EMAIL;
-  auth.user.password = USER_PASSWORD;
+  // Đăng nhập bằng tài khoản của CHÍNH khách hàng (không hardcode nữa)
+  auth.user.email = nvsEmail.c_str();
+  auth.user.password = nvsPassword.c_str();
   fb_config.token_status_callback = tokenStatusCallback;
   
   Firebase.begin(&fb_config, &auth);
   Firebase.reconnectWiFi(true);
   dht.begin();
+  
+  // Chờ Firebase Auth kết nối và lấy UID tự động
+  Serial.println("Waiting for Firebase Auth...");
+  unsigned long authStart = millis();
+  while (!Firebase.ready() && millis() - authStart < 15000) {
+    delay(100);
+  }
+  
+  if (Firebase.ready()) {
+    // Lấy UID tự động từ Firebase Auth token
+    String autoUid = auth.token.uid.c_str();
+    if (autoUid.length() > 0) {
+      nvsUserUid = autoUid;
+      saveUidToNVS(autoUid.c_str());
+      Serial.println("AUTO UID: " + nvsUserUid);
+    }
+  }
+  
+  Serial.println("\n=== SMART GARDEN DEBUG ===");
+  Serial.println("WiFi: " + WiFi.SSID());
+  Serial.println("IP: " + WiFi.localIP().toString());
+  Serial.println("Auth Email: " + nvsEmail);
+  Serial.println("Auth UID: " + nvsUserUid);
+  Serial.println("Target Area: " + nvsAreaId);
+  Serial.println("Path: users/" + nvsUserUid + "/areas/" + nvsAreaId);
+  Serial.println("Firebase Ready: " + String(Firebase.ready() ? "YES" : "NO"));
+  Serial.println("=========================\n");
   
   updateDisplay();
 }
