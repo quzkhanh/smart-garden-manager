@@ -1,0 +1,56 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "smart-garden-manager",
+          "appId": "1:312825292356:android:3c8389c89e09909d3abe11",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "smart-garden-manager",
+          "configurations": {
+            "android": "1:312825292356:android:3c8389c89e09909d3abe11",
+            "ios": "1:312825292356:ios:0a18fabe7aacc85c3abe11",
+            "macos": "1:312825292356:ios:0a18fabe7aacc85c3abe11",
+            "web": "1:312825292356:web:9a15f1b6c43b4d2a3abe11",
+            "windows": "1:312825292356:web:b73d49aa3b2c25c13abe11"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}

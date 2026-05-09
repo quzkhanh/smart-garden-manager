@@ -44,13 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase sensitive files with API keys
-firebase.json
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
-.firebaserc
-.runtimeconfig.json
+# Firebase sensitive files with API keys (Uncommented by user request to push to GitHub)
+# firebase.json
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+# lib/firebase_options.dart
+# .firebaserc
+# .runtimeconfig.json
 
 # Environment files
 .env
