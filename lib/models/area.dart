@@ -107,6 +107,7 @@ class Area {
           [],
       devices: (map['devices'] as List<dynamic>?)
               ?.map((d) => Device.fromMap(d as Map<String, dynamic>))
+              .where((d) => d.type != 'light') // Filter out light devices
               .toList() ??
           [],
     );
