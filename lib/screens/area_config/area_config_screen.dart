@@ -571,100 +571,272 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     int duration = 10;
     List<int> selectedDays = [1, 2, 3, 4, 5, 6, 7];
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Thêm lịch tưới'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Thiết bị:', style: TextStyle(fontWeight: FontWeight.bold)),
-                DropdownButton<String>(
-                  value: selectedDeviceId,
-                  isExpanded: true,
-                  items: area.devices.map((d) => DropdownMenuItem(
-                    value: d.id,
-                    child: Text(d.name),
-                  )).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() {
-                        selectedDeviceId = val;
-                        selectedDeviceName = area.devices.firstWhere((d) => d.id == val).name;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text('Thời gian:', style: TextStyle(fontWeight: FontWeight.bold)),
-                ListTile(
-                  title: Text('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
-                  trailing: const Icon(Icons.access_time),
-                  onTap: () async {
-                    final picked = await showTimePicker(context: context, initialTime: selectedTime);
-                    if (picked != null) setDialogState(() => selectedTime = picked);
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text('Thời lượng (phút):', style: TextStyle(fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove), onPressed: () => setDialogState(() => duration = (duration > 1 ? duration - 1 : 1))),
-                    Text('$duration'),
-                    IconButton(icon: const Icon(Icons.add), onPressed: () => setDialogState(() => duration++)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text('Ngày trong tuần:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Wrap(
-                  spacing: 4,
-                  children: List.generate(7, (index) {
-                    final day = index + 1;
-                    final isSelected = selectedDays.contains(day);
-                    final labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-                    return FilterChip(
-                      label: Text(labels[index], style: TextStyle(fontSize: 10, color: isSelected ? Colors.white : Colors.black)),
-                      selected: isSelected,
-                      selectedColor: AppColors.primaryGreen,
-                      onSelected: (val) {
-                        setDialogState(() {
-                          if (val) selectedDays.add(day);
-                          else selectedDays.remove(day);
-                        });
-                      },
-                    );
-                  }),
-                ),
-              ],
+        builder: (context, setDialogState) {
+          final theme = Theme.of(context);
+          final labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+          return Container(
+            padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 30),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedDays.isEmpty) return;
-                final schedule = WateringSchedule(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  deviceId: selectedDeviceId,
-                  deviceName: selectedDeviceName,
-                  hour: selectedTime.hour,
-                  minute: selectedTime.minute,
-                  durationMinutes: duration,
-                  daysOfWeek: selectedDays,
-                );
-                garden.addWateringSchedule(widget.areaId, schedule);
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, foregroundColor: Colors.white),
-              child: const Text('Thêm'),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Thêm lịch tưới', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                      IconButton.filledTonal(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Device selector
+                  Text('Thiết bị', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                      color: AppColors.primaryGreen.withValues(alpha: 0.05),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedDeviceId,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryGreen),
+                        items: area.devices.map((d) => DropdownMenuItem(
+                          value: d.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                d.type == 'pump' ? Icons.water_drop_rounded
+                                    : d.type == 'mist' ? Icons.cloud_rounded
+                                    : Icons.air_rounded,
+                                color: AppColors.primaryGreen, size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(d.name),
+                            ],
+                          ),
+                        )).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedDeviceId = val;
+                              selectedDeviceName = area.devices.firstWhere((d) => d.id == val).name;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Time & Duration
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Thời gian', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: selectedTime,
+                                  builder: (ctx2, child) => Theme(
+                                    data: Theme.of(ctx2).copyWith(
+                                      colorScheme: Theme.of(ctx2).colorScheme.copyWith(primary: AppColors.primaryGreen),
+                                    ),
+                                    child: child!,
+                                  ),
+                                );
+                                if (picked != null) setDialogState(() => selectedTime = picked);
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                  color: Colors.blue.withValues(alpha: 0.05),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.schedule_rounded, color: Colors.blue, size: 20),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Thời lượng', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                                color: Colors.orange.withValues(alpha: 0.05),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_rounded, size: 20),
+                                    onPressed: () => setDialogState(() => duration = (duration > 1 ? duration - 1 : 1)),
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    padding: EdgeInsets.zero,
+                                    color: Colors.orange,
+                                  ),
+                                  Text('$duration phút', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_rounded, size: 20),
+                                    onPressed: () => setDialogState(() => duration++),
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    padding: EdgeInsets.zero,
+                                    color: Colors.orange,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Day picker
+                  Text('Ngày trong tuần', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(7, (index) {
+                      final day = index + 1;
+                      final isSelected = selectedDays.contains(day);
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            if (isSelected) selectedDays.remove(day);
+                            else selectedDays.add(day);
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 42, height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected ? AppColors.primaryGreen : Colors.transparent,
+                            border: Border.all(
+                              color: isSelected ? AppColors.primaryGreen : Colors.grey.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              labels[index],
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected ? Colors.white : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => setDialogState(() => selectedDays = [1, 2, 3, 4, 5, 6, 7]),
+                        child: const Text('Tất cả', style: TextStyle(fontSize: 12, color: AppColors.primaryGreen)),
+                      ),
+                      TextButton(
+                        onPressed: () => setDialogState(() => selectedDays = [1, 2, 3, 4, 5]),
+                        child: const Text('Ngày thường', style: TextStyle(fontSize: 12, color: AppColors.primaryGreen)),
+                      ),
+                      TextButton(
+                        onPressed: () => setDialogState(() => selectedDays = [6, 7]),
+                        child: const Text('Cuối tuần', style: TextStyle(fontSize: 12, color: AppColors.primaryGreen)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Submit
+                  ElevatedButton.icon(
+                    onPressed: selectedDays.isEmpty ? null : () {
+                      final schedule = WateringSchedule(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        deviceId: selectedDeviceId,
+                        deviceName: selectedDeviceName,
+                        hour: selectedTime.hour,
+                        minute: selectedTime.minute,
+                        durationMinutes: duration,
+                        daysOfWeek: selectedDays..sort(),
+                      );
+                      garden.addWateringSchedule(widget.areaId, schedule);
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('Thêm lịch tưới'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
+                      minimumSize: const Size(double.infinity, 54),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
+
+
