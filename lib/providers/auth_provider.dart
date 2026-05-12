@@ -25,6 +25,7 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? _masterUid;
   bool _isFirstTime = true;
   Timer? _heartbeatTimer;
+  bool _disposed = false;
 
   AuthState get state => _state;
   String get phoneNumber => _phoneNumber;
@@ -355,10 +356,17 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _disposed = true;
     _stopHeartbeat();
     WidgetsBinding.instance.removeObserver(this);
     _qrSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
   }
 
   Future<void> forceLogout(String reason) async {

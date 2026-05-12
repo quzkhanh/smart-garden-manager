@@ -24,7 +24,6 @@ class MockData {
           Device(id: 'd1_1', name: 'Bơm nước', type: 'pump', isOn: false),
           Device(id: 'd1_2', name: 'Phun sương', type: 'mist', isOn: true),
           Device(id: 'd1_3', name: 'Quạt thông gió', type: 'fan', isOn: true),
-          Device(id: 'd1_4', name: 'Đèn chiếu sáng', type: 'light', isOn: false),
         ],
       ),
       Area(
@@ -54,7 +53,6 @@ class MockData {
         devices: [
           Device(id: 'd3_1', name: 'Bơm nước', type: 'pump', isOn: false),
           Device(id: 'd3_2', name: 'Van nước', type: 'valve', isOn: true),
-          Device(id: 'd3_3', name: 'Đèn chiếu sáng', type: 'light', isOn: true),
         ],
       ),
       Area(
@@ -70,7 +68,6 @@ class MockData {
           Device(id: 'd4_1', name: 'Bơm nước', type: 'pump', isOn: false),
           Device(id: 'd4_2', name: 'Phun sương', type: 'mist', isOn: false),
           Device(id: 'd4_3', name: 'Quạt thông gió', type: 'fan', isOn: false),
-          Device(id: 'd4_4', name: 'Đèn chiếu sáng', type: 'light', isOn: true),
           Device(id: 'd4_5', name: 'Van nước', type: 'valve', isOn: false),
         ],
       ),

@@ -80,6 +80,12 @@ class Area {
   }
 
   factory Area.fromMap(String id, Map<String, dynamic> map) {
+    final filteredDevices = (map['devices'] as List<dynamic>?)
+            ?.map((d) => Device.fromMap(d as Map<String, dynamic>))
+            .where((d) => d.type != 'light')
+            .toList() ??
+        [];
+
     return Area(
       id: id,
       name: map['name'] as String? ?? 'Chưa đặt tên',
@@ -89,29 +95,25 @@ class Area {
       config: map['config'] != null 
           ? AreaConfig.fromMap(map['config'] as Map<String, dynamic>)
           : const AreaConfig(),
-      rules: (map['rules'] as List? ?? [])
-          .map((r) => AutomationRule.fromMap(r['id'] ?? '', r as Map<String, dynamic>))
-          .where((rule) => !rule.actions.any((a) => a.deviceId == 'light_1')) // Filter out light rules
-          .toList(),
-      schedules: (map['schedules'] as List? ?? [])
-          .map((s) => WateringSchedule.fromMap(s as Map<String, dynamic>))
-          .where((s) => s.deviceId != 'light_1') // Filter out light schedules
-          .toList(),
+      sensors: (map['sensors'] as List<dynamic>?)
+              ?.map((s) => Sensor.fromMap(s['id'] ?? '', s as Map<String, dynamic>))
+              .toList() ??
+          [],
+      devices: filteredDevices,
       createdAt: map['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt())
           : null,
       lastSeen: map['lastSeen'] != null
           ? DateTime.fromMillisecondsSinceEpoch((map['lastSeen'] as num).toInt())
           : null,
-      sensors: (map['sensors'] as List<dynamic>?)
-              ?.map((s) => Sensor.fromMap(s['id'] ?? '', s as Map<String, dynamic>))
-              .toList() ??
-          [],
-      devices: (map['devices'] as List<dynamic>?)
-              ?.map((d) => Device.fromMap(d as Map<String, dynamic>))
-              .where((d) => d.type != 'light') // Filter out light devices
-              .toList() ??
-          [],
+      rules: (map['rules'] as List? ?? [])
+          .map((r) => AutomationRule.fromMap(r['id'] ?? '', r as Map<String, dynamic>))
+          .where((rule) => rule.actions.every((a) => filteredDevices.any((d) => d.id == a.deviceId)))
+          .toList(),
+      schedules: (map['schedules'] as List? ?? [])
+          .map((s) => WateringSchedule.fromMap(s as Map<String, dynamic>))
+          .where((s) => filteredDevices.any((d) => d.id == s.deviceId))
+          .toList(),
     );
   }
 
