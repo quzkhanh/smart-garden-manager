@@ -10,6 +10,8 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/delete_area_dialog.dart';
+import '../../widgets/device/timer_picker_dialog.dart';
+import '../../widgets/device/schedule_manager_dialog.dart';
 import 'widgets/rule_builder_sheet.dart';
 import 'widgets/config_section_header.dart';
 import 'widgets/config_range_labels.dart';
@@ -436,9 +438,9 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => _showScheduleDialog(context, garden),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Thêm lịch'),
+                  onPressed: () => _showScheduleManager(context, garden),
+                  icon: const Icon(Icons.settings_suggest_rounded, size: 18),
+                  label: const Text('Quản lý lịch'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primaryGreen,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -447,63 +449,42 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               ],
             ).animate().fadeIn(delay: 320.ms),
 
-            if (area.schedules.isEmpty)
-              AppCard(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+            AppCard(
+              onTap: () => _showScheduleManager(context, garden),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.calendar_month_rounded, color: AppColors.primaryGreen),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.timer_outlined, size: 40, color: Colors.grey.withValues(alpha: 0.3)),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Chưa có lịch tưới định kỳ nào',
-                          style: TextStyle(color: Colors.grey),
+                        Text(
+                          area.schedules.isEmpty 
+                              ? 'Chưa có lịch tưới nào' 
+                              : 'Đang có ${area.schedules.length} lịch tưới được thiết lập',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        Text(
+                          area.schedules.isEmpty 
+                              ? 'Nhấn để bắt đầu thêm lịch mới' 
+                              : 'Nhấn để xem hoặc điều chỉnh lịch trình',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ).animate().fadeIn(delay: 330.ms)
-            else
-              Column(
-                children: area.schedules.map((schedule) => AppCard(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.water_drop, color: AppColors.primaryGreen, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(schedule.deviceName, style: theme.textTheme.titleSmall),
-                            Text(
-                              '${schedule.hour.toString().padLeft(2, '0')}:${schedule.minute.toString().padLeft(2, '0')} • ${schedule.durationMinutes} phút',
-                              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              _formatDays(schedule.daysOfWeek),
-                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                        onPressed: () => garden.deleteWateringSchedule(widget.areaId, schedule.id),
-                      ),
-                    ],
-                  ),
-                )).toList(),
-              ).animate().fadeIn(delay: 330.ms),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                ],
+              ),
+            ).animate().fadeIn(delay: 330.ms),
 
             const SizedBox(height: 32),
 
@@ -684,6 +665,26 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     if (days.length == 7) return 'Hàng ngày';
     final List<String> labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     return days.map((d) => labels[d - 1]).join(', ');
+  }
+
+  void _showScheduleManager(BuildContext context, GardenProvider garden) async {
+    final area = garden.getArea(widget.areaId);
+    if (area == null) return;
+
+    final result = await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ScheduleManagerDialog(
+        area: area,
+        garden: garden,
+      ),
+    );
+
+    if (result == 'add') {
+      if (!mounted) return;
+      _showScheduleDialog(context, garden);
+    }
   }
 
   void _showScheduleDialog(BuildContext context, GardenProvider garden) {
