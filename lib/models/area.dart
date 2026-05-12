@@ -91,9 +91,11 @@ class Area {
           : const AreaConfig(),
       rules: (map['rules'] as List? ?? [])
           .map((r) => AutomationRule.fromMap(r['id'] ?? '', r as Map<String, dynamic>))
+          .where((rule) => !rule.actions.any((a) => a.deviceId == 'light_1')) // Filter out light rules
           .toList(),
       schedules: (map['schedules'] as List? ?? [])
           .map((s) => WateringSchedule.fromMap(s as Map<String, dynamic>))
+          .where((s) => s.deviceId != 'light_1') // Filter out light schedules
           .toList(),
       createdAt: map['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt())
