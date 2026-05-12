@@ -99,6 +99,7 @@ class AutomationRule {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'name': name,
       'isEnabled': isEnabled,
       'conditions': conditions.map((c) => c.toMap()).toList(),
