@@ -140,9 +140,10 @@ class GardenProvider extends ChangeNotifier {
     if (_uid == null) return;
     
     try {
-      // Each area always has exactly 2 fixed hardware devices: Pump and Fan
+      // Each area always has exactly 3 fixed hardware devices: Pump, Mist, and Fan
       final devices = [
         Device(id: 'pump_1', name: 'Máy bơm', type: 'pump'),
+        Device(id: 'mist_1', name: 'Phun sương', type: 'mist'),
         Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
       ];
 

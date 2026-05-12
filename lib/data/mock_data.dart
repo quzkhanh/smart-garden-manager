@@ -21,7 +21,7 @@ class MockData {
           Sensor(id: 's1_3', type: 'soil_moisture', value: 45, minValue: 0, maxValue: 100, unit: '%'),
         ],
         devices: [
-          Device(id: 'd1_1', name: 'Bơm nước', type: 'pump', isOn: false),
+          Device(id: 'd1_1', name: 'Máy bơm', type: 'pump', isOn: false),
           Device(id: 'd1_2', name: 'Phun sương', type: 'mist', isOn: true),
           Device(id: 'd1_3', name: 'Quạt thông gió', type: 'fan', isOn: true),
         ],
@@ -36,7 +36,7 @@ class MockData {
           Sensor(id: 's2_3', type: 'soil_moisture', value: 30, minValue: 0, maxValue: 100, unit: '%'),
         ],
         devices: [
-          Device(id: 'd2_1', name: 'Bơm nước', type: 'pump', isOn: true),
+          Device(id: 'd2_1', name: 'Máy bơm', type: 'pump', isOn: true),
           Device(id: 'd2_2', name: 'Phun sương', type: 'mist', isOn: false),
           Device(id: 'd2_3', name: 'Quạt thông gió', type: 'fan', isOn: true),
         ],
@@ -51,8 +51,9 @@ class MockData {
           Sensor(id: 's3_3', type: 'soil_moisture', value: 58, minValue: 0, maxValue: 100, unit: '%'),
         ],
         devices: [
-          Device(id: 'd3_1', name: 'Bơm nước', type: 'pump', isOn: false),
-          Device(id: 'd3_2', name: 'Van nước', type: 'valve', isOn: true),
+          Device(id: 'd3_1', name: 'Máy bơm', type: 'pump', isOn: false),
+          Device(id: 'd3_2', name: 'Phun sương', type: 'mist', isOn: false),
+          Device(id: 'd3_3', name: 'Quạt thông gió', type: 'fan', isOn: true),
         ],
       ),
       Area(
@@ -65,10 +66,9 @@ class MockData {
           Sensor(id: 's4_3', type: 'soil_moisture', value: 35, minValue: 0, maxValue: 100, unit: '%'),
         ],
         devices: [
-          Device(id: 'd4_1', name: 'Bơm nước', type: 'pump', isOn: false),
+          Device(id: 'd4_1', name: 'Máy bơm', type: 'pump', isOn: false),
           Device(id: 'd4_2', name: 'Phun sương', type: 'mist', isOn: false),
           Device(id: 'd4_3', name: 'Quạt thông gió', type: 'fan', isOn: false),
-          Device(id: 'd4_5', name: 'Van nước', type: 'valve', isOn: false),
         ],
       ),
       Area(
@@ -81,8 +81,9 @@ class MockData {
           Sensor(id: 's5_3', type: 'soil_moisture', value: 50, minValue: 0, maxValue: 100, unit: '%'),
         ],
         devices: [
-          Device(id: 'd5_1', name: 'Bơm nước', type: 'pump', isOn: true),
+          Device(id: 'd5_1', name: 'Máy bơm', type: 'pump', isOn: true),
           Device(id: 'd5_2', name: 'Phun sương', type: 'mist', isOn: true),
+          Device(id: 'd5_3', name: 'Quạt thông gió', type: 'fan', isOn: false),
         ],
       ),
     ];
@@ -172,21 +173,11 @@ class MockData {
     ];
   }
 
-  /// Generate 24h mock sensor history for a given area.
-  /// In production, replace this with a Firebase Firestore query:
-  /// ```dart
-  /// FirebaseFirestore.instance
-  ///   .collection('areas/$areaId/sensor_readings')
-  ///   .where('timestamp', isGreaterThan: DateTime.now().subtract(Duration(hours: 24)))
-  ///   .orderBy('timestamp')
-  ///   .get()
-  /// ```
   static SensorHistory getSensorHistory(String areaId) {
     final now = DateTime.now();
-    final rng = Random(areaId.hashCode); // deterministic per area
-    const dataPoints = 48; // every 30 min for 24h
+    final rng = Random(areaId.hashCode);
+    const dataPoints = 48;
 
-    // Base values vary by area
     final tempBase = 25.0 + rng.nextDouble() * 8;
     final humidBase = 55.0 + rng.nextDouble() * 15;
     final soilBase = 40.0 + rng.nextDouble() * 20;
@@ -204,7 +195,6 @@ class MockData {
         final timestamp = now.subtract(Duration(
           minutes: (hoursAgo * 60).round(),
         ));
-        // Sine wave simulating day/night cycle + random noise
         final wave = sin((i / dataPoints) * 2 * pi + phaseShift) * amplitude;
         final noise = (rng.nextDouble() - 0.5) * noiseRange;
         final value = (baseValue + wave + noise).clamp(minVal, maxVal);
@@ -218,7 +208,7 @@ class MockData {
         tempBase, 4.0, 1.5, 0, 50, 0,
       ),
       airHumidityReadings: generateReadings(
-        humidBase, 10.0, 3.0, 0, 100, pi, // inverse of temp
+        humidBase, 10.0, 3.0, 0, 100, pi,
       ),
       soilMoistureReadings: generateReadings(
         soilBase, 8.0, 2.0, 0, 100, pi / 2,
