@@ -87,10 +87,7 @@ const Map<String, String> en = {
   'config_temperature': 'Temperature Settings',
   'config_max_temp': 'Max Temperature — triggers fan/misting',
   'config_max_temp_hint': 'Fan and misting activate when temperature exceeds this value',
-  'config_lighting': 'Lighting Schedule',
-  'config_light_on': 'Lights On',
-  'config_light_off': 'Lights Off',
-  'config_light_duration': 'Lighting Duration',
+
   'update_config': 'Update Configuration',
   'config_saved': 'Configuration updated successfully!',
   'config_error': 'An error occurred, please try again.',
@@ -103,7 +100,6 @@ const Map<String, String> en = {
   'pump': 'Water Pump',
   'mist': 'Mist Sprayer',
   'fan': 'Ventilation Fan',
-  'light': 'Light',
   'valve': 'Water Valve',
 
   // Alerts
@@ -156,7 +152,7 @@ const Map<String, String> en = {
   'onboarding_title_2': 'Real-time monitoring',
   'onboarding_desc_2': 'Get precise readings of temperature, soil and air moisture through intuitive and vivid charts.',
   'onboarding_title_3': 'Remote control',
-  'onboarding_desc_3': 'Turn pumps, fans, and lights on or off from anywhere, at any time, with just a single tap.',
+  'onboarding_desc_3': 'Turn pumps, fans, and mist sprayers on or off from anywhere, at any time, with just a single tap.',
   'onboarding_title_4': 'Smart Automation',
   'onboarding_desc_4': 'Set schedules and automated rules to help your garden take care of itself perfectly.',
   'onboarding_title_5': 'Ready to start?',

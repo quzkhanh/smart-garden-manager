@@ -88,10 +88,7 @@ const Map<String, String> vi = {
   'config_temperature': 'Cài đặt nhiệt độ',
   'config_max_temp': 'Nhiệt độ tối đa — kích hoạt quạt/phun sương',
   'config_max_temp_hint': 'Quạt và phun sương bật khi nhiệt độ vượt ngưỡng này',
-  'config_lighting': 'Lịch chiếu sáng',
-  'config_light_on': 'Giờ bật đèn',
-  'config_light_off': 'Giờ tắt đèn',
-  'config_light_duration': 'Thời gian chiếu sáng',
+
   'update_config': 'Cập nhật cấu hình',
   'config_saved': 'Cấu hình đã được cập nhật!',
   'config_error': 'Có lỗi xảy ra, vui lòng thử lại.',
@@ -104,7 +101,6 @@ const Map<String, String> vi = {
   'pump': 'Bơm nước',
   'mist': 'Phun sương',
   'fan': 'Quạt thông gió',
-  'light': 'Đèn chiếu sáng',
   'valve': 'Van nước',
 
   // Alerts
@@ -144,7 +140,7 @@ const Map<String, String> vi = {
   'onboarding_title_2': 'Theo dõi thời gian thực',
   'onboarding_desc_2': 'Nắm bắt chính xác nhiệt độ, độ ẩm đất và không khí thông qua các biểu đồ trực quan sinh động.',
   'onboarding_title_3': 'Điều khiển từ xa',
-  'onboarding_desc_3': 'Bật/tắt máy bơm, quạt, đèn... bất cứ nơi đâu, bất cứ khi nào bạn muốn chỉ với một cú chạm.',
+  'onboarding_desc_3': 'Bật/tắt máy bơm, quạt, phun sương... bất cứ nơi đâu, bất cứ khi nào bạn muốn chỉ với một cú chạm.',
   'onboarding_title_4': 'Tự động hóa thông minh',
   'onboarding_desc_4': 'Thiết lập lịch trình và các quy tắc tự động giúp khu vườn của bạn tự chăm sóc mình một cách hoàn hảo.',
   'onboarding_title_5': 'Sẵn sàng bắt đầu?',

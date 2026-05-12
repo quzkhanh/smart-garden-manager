@@ -3,7 +3,7 @@
 class Device {
   final String id;
   final String name;
-  final String type; // 'pump', 'mist', 'fan', 'light', 'valve'
+  final String type; // 'pump', 'mist', 'fan', 'valve'
   bool isOn;
 
   /// Timer fields for manual mode scheduling.

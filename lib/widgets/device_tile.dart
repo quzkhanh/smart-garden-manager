@@ -120,8 +120,6 @@ class DeviceTile extends StatelessWidget {
         return LucideIcons.cloudFog;
       case 'fan':
         return LucideIcons.wind;
-      case 'light':
-        return LucideIcons.sun;
       case 'valve':
         return LucideIcons.power;
       default:

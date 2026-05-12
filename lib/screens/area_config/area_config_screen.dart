@@ -15,8 +15,6 @@ import '../../widgets/device/schedule_manager_dialog.dart';
 import 'widgets/rule_builder_sheet.dart';
 import 'widgets/config_section_header.dart';
 import 'widgets/config_range_labels.dart';
-import 'widgets/config_time_button.dart';
-import 'widgets/config_duration_row.dart';
 import 'widgets/config_save_bar.dart';
 
 class AreaConfigScreen extends StatefulWidget {
@@ -32,8 +30,6 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
   late TextEditingController _nameController;
   late double _soilThreshold;
   late double _maxTemp;
-  late TimeOfDay _lightOn;
-  late TimeOfDay _lightOff;
   bool _isSaving = false;
   bool _hasChanges = false;
 
@@ -46,8 +42,6 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     _nameController = TextEditingController(text: area?.name ?? '');
     _soilThreshold = config.soilMoistureThreshold;
     _maxTemp = config.maxTemperature;
-    _lightOn = TimeOfDay(hour: config.lightOnHour, minute: config.lightOnMinute);
-    _lightOff = TimeOfDay(hour: config.lightOffHour, minute: config.lightOffMinute);
     _nameController.addListener(_onChanged);
   }
 
@@ -59,33 +53,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     super.dispose();
   }
 
-  Future<void> _pickTime(BuildContext context, bool isOn) async {
-    final initial = isOn ? _lightOn : _lightOff;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppColors.primaryGreen,
-                ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        if (isOn) {
-          _lightOn = picked;
-        } else {
-          _lightOff = picked;
-        }
-        _hasChanges = true;
-      });
-    }
-  }
+
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
@@ -99,10 +67,6 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
     final config = AreaConfig(
       soilMoistureThreshold: _soilThreshold,
       maxTemperature: _maxTemp,
-      lightOnHour: _lightOn.hour,
-      lightOnMinute: _lightOn.minute,
-      lightOffHour: _lightOff.hour,
-      lightOffMinute: _lightOff.minute,
     );
     garden.updateAreaName(widget.areaId, name);
     garden.updateAreaConfig(widget.areaId, config);
@@ -334,96 +298,6 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
                 ],
               ),
             ).animate().fadeIn(delay: 240.ms, duration: 400.ms),
-
-            const SizedBox(height: 20),
-
-            // ── Lighting Schedule ──────────────────────────────────────────
-            ConfigSectionHeader(
-              icon: Icons.wb_sunny_rounded,
-              color: Colors.amber,
-              title: l10n.t('config_lighting'),
-            ).animate().fadeIn(delay: 280.ms, duration: 400.ms),
-
-            AppCard(
-              child: Column(
-                children: [
-                  // Schedule summary banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.amber.withValues(alpha: isDark ? 0.25 : 0.12),
-                          Colors.orange.withValues(alpha: isDark ? 0.15 : 0.06),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatTime(_lightOn),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.amber.shade700,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.amber.withValues(alpha: 0.7)),
-                        ),
-                        const Icon(Icons.nights_stay_rounded, color: Colors.amber, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatTime(_lightOff),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.amber.shade700,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Time picker buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ConfigTimeButton(
-                          label: l10n.t('config_light_on'),
-                          time: _formatTime(_lightOn),
-                          icon: Icons.wb_sunny_rounded,
-                          color: Colors.amber,
-                          onTap: () => _pickTime(context, true),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ConfigTimeButton(
-                          label: l10n.t('config_light_off'),
-                          time: _formatTime(_lightOff),
-                          icon: Icons.nights_stay_rounded,
-                          secondaryIcon: Icons.star_rounded,
-                          color: const Color(0xFF001F3F), // Solid Color for Solid Background
-                          onTap: () => _pickTime(context, false),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Duration display
-                  const SizedBox(height: 12),
-                  ConfigDurationRow(on: _lightOn, off: _lightOff),
-                ],
-              ),
-            ).animate().fadeIn(delay: 320.ms, duration: 400.ms),
 
             const SizedBox(height: 20),
 
