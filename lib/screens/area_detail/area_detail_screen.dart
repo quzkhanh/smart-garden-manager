@@ -10,7 +10,6 @@ import '../../widgets/sensor_bar.dart';
 import '../../widgets/device_tile.dart';
 import '../../widgets/sensor_chart.dart';
 import '../../widgets/common/app_card.dart';
-import '../../widgets/common/add_device_dialog.dart';
 import '../../widgets/device/timer_picker_dialog.dart';
 
 class AreaDetailScreen extends StatelessWidget {
@@ -35,10 +34,117 @@ class AreaDetailScreen extends StatelessWidget {
       );
     }
 
-    // Sensor chart will handle its own real-time stream via areaId
-    // final sensorHistory = garden.getSensorHistory(areaId);
-
     final content = [
+      // Soil Renovation banner (when active)
+      if (area.isSoilRenovation)
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.orange.withValues(alpha: isDark ? 0.25 : 0.12),
+                Colors.deepOrange.withValues(alpha: isDark ? 0.15 : 0.06),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(LucideIcons.construction, color: Colors.orange, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Đang cải tạo đất',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tất cả thiết bị đã tắt. Chế độ thủ công.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => _confirmStopRenovation(context, garden),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.orange.shade700,
+                  backgroundColor: Colors.orange.withValues(alpha: 0.15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Kết thúc'),
+              ),
+            ],
+          ),
+        ).animate().fadeIn(duration: 400.ms),
+
+      // Offline banner
+      if (!area.isOnline)
+        Container(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.red.withValues(alpha: isDark ? 0.25 : 0.12),
+                Colors.redAccent.withValues(alpha: isDark ? 0.15 : 0.06),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.wifi_off_rounded, color: Colors.red, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mất kết nối (Ngoại tuyến)',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Thiết bị điều khiển vườn không phản hồi. Dữ liệu có thể đã cũ.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.red.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ).animate().fadeIn(duration: 400.ms),
+
       // Mode toggle section
       AppCard(
         child: Column(
@@ -53,13 +159,17 @@ class AreaDetailScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    area.isAutoMode
-                        ? l10n.t('auto_mode')
-                        : l10n.t('manual_mode'),
+                    area.isSoilRenovation
+                        ? 'Cải tạo đất'
+                        : area.isAutoMode
+                            ? l10n.t('auto_mode')
+                            : l10n.t('manual_mode'),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: area.isAutoMode
-                          ? AppColors.primaryGreen
-                          : AppColors.alertMedium,
+                      color: area.isSoilRenovation
+                          ? Colors.orange
+                          : area.isAutoMode
+                              ? AppColors.primaryGreen
+                              : AppColors.alertMedium,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -80,7 +190,9 @@ class AreaDetailScreen extends StatelessWidget {
                     ),
                     Switch.adaptive(
                       value: area.isAutoMode,
-                      onChanged: (_) => garden.toggleAreaMode(areaId),
+                      onChanged: area.isSoilRenovation
+                          ? null
+                          : (_) => garden.toggleAreaMode(areaId),
                       activeTrackColor: AppColors.primaryGreen,
                     ),
                     Text(
@@ -121,12 +233,44 @@ class AreaDetailScreen extends StatelessWidget {
         ),
       ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
 
-      // 24h Chart section
       SensorChartCard(
         areaId: areaId,
       ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
 
-      // Device control section
+      // Area Notes section
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Ghi chú khu vực',
+                  style: theme.textTheme.titleMedium,
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.edit3, size: 18),
+                  onPressed: () => _showNotesDialog(context, garden, area.notes),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (area.notes.isEmpty)
+              Text(
+                'Chưa có ghi chú nào. Hãy thêm ghi chú về cây trồng hoặc lịch trình canh tác.',
+                style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+              )
+            else
+              Text(
+                area.notes,
+                style: theme.textTheme.bodyMedium,
+              ),
+          ],
+        ),
+      ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+
+      // Device control section (no add/delete - devices are fixed hardware)
       AppCard(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Column(
@@ -135,32 +279,30 @@ class AreaDetailScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      Text(
-                        l10n.t('device_control'),
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () async {
-                          final result = await showDialog<Map<String, dynamic>>(
-                            context: context,
-                            builder: (ctx) => const AddDeviceDialog(),
-                          );
-                          if (result != null) {
-                            garden.addDevice(areaId, result['name'], result['type']);
-                          }
-                        },
-                        icon: const Icon(LucideIcons.circlePlus, size: 20),
-                        color: AppColors.primaryGreen,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
+                  child: Text(
+                    l10n.t('device_control'),
+                    style: theme.textTheme.titleMedium,
                   ),
                 ),
-                if (area.isAutoMode)
+                if (area.isSoilRenovation)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Cải tạo đất',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else if (area.isAutoMode)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -183,12 +325,11 @@ class AreaDetailScreen extends StatelessWidget {
             const SizedBox(height: 12),
             ...area.devices.map((device) => DeviceTile(
                   device: device,
-                  isAutoMode: area.isAutoMode,
+                  isAutoMode: area.isAutoMode || area.isSoilRenovation,
                   onToggle: (_) => garden.toggleDevice(areaId, device.id),
                   onTimerTap: () => _showTimerDialog(context, garden, device.id),
                   onCancelTimer: () =>
                       garden.cancelDeviceTimer(areaId, device.id),
-                  onDelete: () => _confirmDeleteDevice(context, garden, device.id),
                 )),
           ],
         ),
@@ -221,6 +362,31 @@ class AreaDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          // Soil renovation toggle button
+          IconButton(
+            tooltip: area.isSoilRenovation ? 'Kết thúc cải tạo đất' : 'Cải tạo đất',
+            icon: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: area.isSoilRenovation
+                    ? Colors.orange.withValues(alpha: isDark ? 0.3 : 0.15)
+                    : Colors.orange.withValues(alpha: isDark ? 0.12 : 0.06),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                LucideIcons.construction,
+                size: 20,
+                color: area.isSoilRenovation ? Colors.orange : Colors.orange.shade300,
+              ),
+            ),
+            onPressed: () {
+              if (area.isSoilRenovation) {
+                _confirmStopRenovation(context, garden);
+              } else {
+                _confirmStartRenovation(context, garden);
+              }
+            },
+          ),
           IconButton(
             tooltip: l10n.t('area_config'),
             icon: Container(
@@ -252,9 +418,13 @@ class AreaDetailScreen extends StatelessWidget {
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            content[0], // Mode
+                            if (area.isSoilRenovation) ...[
+                              content[0], // Renovation banner
+                              const SizedBox(height: 16),
+                            ],
+                            content[area.isSoilRenovation ? 1 : 0], // Mode
                             const SizedBox(height: 16),
-                            content[1], // Sensor data
+                            content[area.isSoilRenovation ? 2 : 1], // Sensor data
                           ],
                         ),
                       ),
@@ -265,9 +435,9 @@ class AreaDetailScreen extends StatelessWidget {
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            content[2], // Chart
+                            content[area.isSoilRenovation ? 3 : 2], // Chart
                             const SizedBox(height: 16),
-                            content[3], // Device control
+                            content[area.isSoilRenovation ? 4 : 3], // Device control
                           ],
                         ),
                       ),
@@ -275,17 +445,11 @@ class AreaDetailScreen extends StatelessWidget {
                   ],
                 ),
               )
-            : ListView(
+            : ListView.separated(
                 padding: const EdgeInsets.all(20),
-                children: [
-                  content[0],
-                  const SizedBox(height: 12),
-                  content[1],
-                  const SizedBox(height: 12),
-                  content[2],
-                  const SizedBox(height: 12),
-                  content[3],
-                ],
+                itemCount: content.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, index) => content[index],
               ),
       ),
     );
@@ -302,29 +466,57 @@ class AreaDetailScreen extends StatelessWidget {
     }
   }
 
-  void _confirmDeleteDevice(BuildContext context, GardenProvider garden, String deviceId) {
-    _showConfirmDialog(
-      context,
-      title: 'Xóa thiết bị?',
-      message: 'Xác nhận xóa thiết bị này khỏi khu vực?',
-      onConfirm: () {
-        garden.deleteDevice(areaId, deviceId);
-      },
-    );
-  }
-
-  void _showConfirmDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-    required VoidCallback onConfirm,
-  }) {
+  void _showNotesDialog(BuildContext context, GardenProvider garden, String currentNotes) {
+    final controller = TextEditingController(text: currentNotes);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title),
-        content: Text(message),
+        title: const Text('Ghi chú khu vực'),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'Nhập ghi chú (ví dụ: gieo hạt ngày 10/5, bón phân...)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              garden.updateAreaNotes(areaId, controller.text.trim());
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmStartRenovation(BuildContext context, GardenProvider garden) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(LucideIcons.construction, color: Colors.orange.shade600),
+            const SizedBox(width: 10),
+            const Text('Cải tạo đất?'),
+          ],
+        ),
+        content: const Text(
+          'Khi vào chế độ cải tạo đất, tất cả thiết bị sẽ bị TẮT và khu vực chuyển sang chế độ THỦ CÔNG.\n\nBạn sẽ không thể bật thiết bị cho đến khi kết thúc cải tạo.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -333,13 +525,43 @@ class AreaDetailScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              onConfirm();
+              garden.toggleSoilRenovation(areaId);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Xóa'),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmStopRenovation(BuildContext context, GardenProvider garden) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Kết thúc cải tạo đất?'),
+        content: const Text(
+          'Khu vực sẽ trở lại chế độ thủ công. Bạn có thể chuyển sang tự động sau.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              garden.toggleSoilRenovation(areaId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Kết thúc'),
           ),
         ],
       ),

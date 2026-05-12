@@ -7,6 +7,8 @@ import '../models/sensor_reading.dart';
 import '../models/sensor.dart';
 import '../models/device.dart';
 import '../models/automation_rule.dart';
+import '../models/watering_schedule.dart';
+import '../models/alert.dart';
 import '../services/weather_service.dart';
 import 'auth_provider.dart';
 
@@ -18,6 +20,9 @@ class GardenProvider extends ChangeNotifier {
   StreamSubscription? _areasSubscription;
   Timer? _timerCheckTimer;
   Timer? _weatherTimer;
+  Timer? _evalTimer;
+  final Map<String, Set<String>> _sentAlerts = {};
+  bool _disposed = false;
   String _language = 'vi';
   final WeatherService _weatherService = WeatherService();
   WeatherData? _currentWeather;
@@ -51,10 +56,29 @@ class GardenProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _timerCheckTimer?.cancel();
     _weatherTimer?.cancel();
     _areasSubscription?.cancel();
+    _evalTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
+  }
+
+  void _startEvaluationTimer() {
+    _evalTimer?.cancel();
+    // Check schedules and thresholds every minute
+    _evalTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      _evaluateThresholds();
+      _evaluateSchedules();
+      notifyListeners(); // Refresh UI to update isOnline status (which depends on current time)
+    });
   }
 
   void updateAuth(AuthProvider auth) {
@@ -63,6 +87,7 @@ class GardenProvider extends ChangeNotifier {
     
     _uid = newUid;
     _areasSubscription?.cancel();
+    _evalTimer?.cancel();
     
     if (_uid == null) {
       _areas = [];
@@ -70,6 +95,7 @@ class GardenProvider extends ChangeNotifier {
       notifyListeners();
     } else {
       _listenToAreas();
+      _startEvaluationTimer();
     }
   }
 
@@ -110,35 +136,16 @@ class GardenProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> addArea(String name, {List<String>? initialDeviceTypes}) async {
+  Future<void> addArea(String name) async {
     if (_uid == null) return;
     
     try {
-      final List<Device> devices = [];
-      if (initialDeviceTypes != null) {
-        for (final type in initialDeviceTypes) {
-           String devName = '';
-           switch(type) {
-             case 'pump': devName = 'Máy bơm'; break;
-             case 'fan': devName = 'Quạt thông gió'; break;
-             case 'light': devName = 'Đèn chiếu sáng'; break;
-             case 'mist': devName = 'Phun sương'; break;
-             case 'valve': devName = 'Van nước'; break;
-             default: devName = 'Thiết bị mới';
-           }
-           devices.add(Device(
-             id: '${type}_${DateTime.now().millisecondsSinceEpoch}',
-             name: devName,
-             type: type,
-           ));
-        }
-      } else {
-        // Default devices if none specified
-        devices.addAll([
-          Device(id: 'pump_1', name: 'Máy bơm 1', type: 'pump'),
-          Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
-        ]);
-      }
+      // Each area always has exactly 3 fixed hardware devices
+      final devices = [
+        Device(id: 'pump_1', name: 'Máy bơm', type: 'pump'),
+        Device(id: 'fan_1', name: 'Quạt thông gió', type: 'fan'),
+        Device(id: 'light_1', name: 'Đèn chiếu sáng', type: 'light'),
+      ];
 
       final newArea = Area(
         id: '', // Firestore will generate
@@ -209,6 +216,9 @@ class GardenProvider extends ChangeNotifier {
     if (_uid == null) return;
     final index = _areas.indexWhere((a) => a.id == areaId);
     if (index != -1) {
+      // Block mode toggle during soil renovation
+      if (_areas[index].isSoilRenovation) return;
+      
       final newMode = !_areas[index].isAutoMode;
       
       // Optimistic UI Update
@@ -233,61 +243,59 @@ class GardenProvider extends ChangeNotifier {
     final areaIndex = _areas.indexWhere((a) => a.id == areaId);
     if (areaIndex != -1) {
       final area = _areas[areaIndex];
-      if (!area.isAutoMode) {
-        final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
-        if (deviceIndex != -1) {
-          final device = area.devices[deviceIndex];
-          device.isOn = !device.isOn;
-          device.clearTimer();
-          
-          // Optimistic UI Update
-          notifyListeners();
-          
-          try {
-            await _firestore
-                .collection('users')
-                .doc(_uid)
-                .collection('areas')
-                .doc(areaId)
-                .update({
-              'devices': area.devices.map((d) => d.toMap()).toList()
-            });
-          } catch (e) {
-            debugPrint('Error toggling device: $e');
-          }
+      // Block device toggle during soil renovation or auto mode
+      if (area.isAutoMode || area.isSoilRenovation) return;
+      final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
+      if (deviceIndex != -1) {
+        final device = area.devices[deviceIndex];
+        device.isOn = !device.isOn;
+        device.clearTimer();
+        
+        // Optimistic UI Update
+        notifyListeners();
+        
+        try {
+          await _firestore
+              .collection('users')
+              .doc(_uid)
+              .collection('areas')
+              .doc(areaId)
+              .update({
+            'devices': area.devices.map((d) => d.toMap()).toList()
+          });
+        } catch (e) {
+          debugPrint('Error toggling device: $e');
         }
       }
     }
   }
 
   /// Set a timer on a device. When the timer expires, the device will toggle.
-  /// In production, this would write to Firebase and use Cloud Functions
-  /// for server-side timer execution.
   void setDeviceTimer(String areaId, String deviceId, Duration duration) async {
     if (_uid == null) return;
     final areaIndex = _areas.indexWhere((a) => a.id == areaId);
     if (areaIndex != -1) {
       final area = _areas[areaIndex];
-      if (!area.isAutoMode) {
-        final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
-        if (deviceIndex != -1) {
-          area.devices[deviceIndex].setTimer(duration);
-          
-          // Optimistic UI Update
-          notifyListeners();
-          
-          try {
-            await _firestore
-                .collection('users')
-                .doc(_uid)
-                .collection('areas')
-                .doc(areaId)
-                .update({
-              'devices': area.devices.map((d) => d.toMap()).toList()
-            });
-          } catch (e) {
-            debugPrint('Error setting device timer: $e');
-          }
+      // Block timer during soil renovation or auto mode
+      if (area.isAutoMode || area.isSoilRenovation) return;
+      final deviceIndex = area.devices.indexWhere((d) => d.id == deviceId);
+      if (deviceIndex != -1) {
+        area.devices[deviceIndex].setTimer(duration);
+        
+        // Optimistic UI Update
+        notifyListeners();
+        
+        try {
+          await _firestore
+              .collection('users')
+              .doc(_uid)
+              .collection('areas')
+              .doc(areaId)
+              .update({
+            'devices': area.devices.map((d) => d.toMap()).toList()
+          });
+        } catch (e) {
+          debugPrint('Error setting device timer: $e');
         }
       }
     }
@@ -342,6 +350,84 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
+  void _evaluateThresholds() {
+    if (_uid == null) return;
+
+    for (final area in _areas) {
+      if (area.isSoilRenovation) continue;
+
+      final tempSensor = area.getSensor('temperature');
+      final soilSensor = area.getSensor('soil_moisture');
+
+      // Check Temperature
+      if (tempSensor != null && tempSensor.value > area.config.maxTemperature) {
+        _sendAlertOnce(area, 'temp_high', 'Nhiệt độ quá cao: ${tempSensor.value.toStringAsFixed(1)}°C', AlertSeverity.high);
+      }
+
+      // Check Soil Moisture
+      if (soilSensor != null && soilSensor.value < area.config.soilMoistureThreshold) {
+        _sendAlertOnce(area, 'soil_dry', 'Độ ẩm đất thấp: ${soilSensor.value.toStringAsFixed(1)}%', AlertSeverity.medium);
+      }
+    }
+  }
+
+  void _sendAlertOnce(Area area, String key, String message, AlertSeverity severity) async {
+    final areaAlerts = _sentAlerts.putIfAbsent(area.id, () => {});
+    if (areaAlerts.contains(key)) return;
+
+    areaAlerts.add(key);
+    
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('alerts')
+          .add({
+        'areaName': area.name,
+        'message': message,
+        'time': DateTime.now().millisecondsSinceEpoch,
+        'severity': severity.name,
+        'isRead': false,
+      });
+    } catch (e) {
+      debugPrint('Error sending threshold alert: $e');
+    }
+
+    // Reset alert after 1 hour so it can trigger again if condition persists
+    Timer(const Duration(hours: 1), () {
+      _sentAlerts[area.id]?.remove(key);
+    });
+  }
+
+  void _evaluateSchedules() {
+    if (_uid == null) return;
+    final now = DateTime.now();
+
+    for (final area in _areas) {
+      if (area.isSoilRenovation || area.isAutoMode) continue;
+
+      for (final schedule in area.schedules) {
+        if (!schedule.isEnabled) continue;
+        if (!schedule.daysOfWeek.contains(now.weekday)) continue;
+
+        if (schedule.hour == now.hour && schedule.minute == now.minute) {
+          // Trigger the device
+          final deviceIndex = area.devices.indexWhere((d) => d.id == schedule.deviceId);
+          if (deviceIndex != -1) {
+            final device = area.devices[deviceIndex];
+            if (!device.isOn) {
+              device.isOn = true;
+              device.setTimer(Duration(minutes: schedule.durationMinutes));
+              
+              _syncAreaDevices(area.id);
+              notifyListeners();
+            }
+          }
+        }
+      }
+    }
+  }
+
   void updateAreaName(String areaId, String newName) async {
     if (_uid == null) return;
     
@@ -361,6 +447,70 @@ class GardenProvider extends ChangeNotifier {
           .update({'name': newName.trim()});
     } catch (e) {
       debugPrint('Error updating area name: $e');
+    }
+  }
+
+  Future<void> updateAreaNotes(String areaId, String notes) async {
+    if (_uid == null) return;
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      _areas[index].notes = notes;
+      notifyListeners();
+
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({'notes': notes});
+      } catch (e) {
+        debugPrint('Error updating area notes: $e');
+      }
+    }
+  }
+
+  Future<void> addWateringSchedule(String areaId, WateringSchedule schedule) async {
+    if (_uid == null) return;
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      final area = _areas[index];
+      final newSchedules = List<WateringSchedule>.from(area.schedules)..add(schedule);
+      
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({
+          'schedules': newSchedules.map((s) => s.toMap()).toList()
+        });
+      } catch (e) {
+        debugPrint('Error adding schedule: $e');
+      }
+    }
+  }
+
+  Future<void> deleteWateringSchedule(String areaId, String scheduleId) async {
+    if (_uid == null) return;
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      final area = _areas[index];
+      final newSchedules = area.schedules.where((s) => s.id != scheduleId).toList();
+      
+      try {
+        await _firestore
+            .collection('users')
+            .doc(_uid)
+            .collection('areas')
+            .doc(areaId)
+            .update({
+          'schedules': newSchedules.map((s) => s.toMap()).toList()
+        });
+      } catch (e) {
+        debugPrint('Error deleting schedule: $e');
+      }
     }
   }
 
@@ -386,57 +536,41 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
-  void addDevice(String areaId, String name, String type) async {
+  /// Toggle soil renovation mode for an area.
+  void toggleSoilRenovation(String areaId) async {
     if (_uid == null) return;
-    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
-    if (areaIndex != -1) {
-      final area = _areas[areaIndex];
-      final newDevice = Device(
-        id: 'dev_${DateTime.now().millisecondsSinceEpoch}',
-        name: name,
-        type: type,
-      );
-      area.devices.add(newDevice);
+    final index = _areas.indexWhere((a) => a.id == areaId);
+    if (index != -1) {
+      final area = _areas[index];
+      final newRenovation = !area.isSoilRenovation;
       
       // Optimistic UI Update
-      notifyListeners();
-      
-      try {
-        await _firestore
-            .collection('users')
-            .doc(_uid)
-            .collection('areas')
-            .doc(areaId)
-            .update({
-          'devices': area.devices.map((d) => d.toMap()).toList()
-        });
-      } catch (e) {
-        debugPrint('Error adding device: $e');
+      area.isSoilRenovation = newRenovation;
+      if (newRenovation) {
+        area.isAutoMode = false;
+        for (final device in area.devices) {
+          device.isOn = false;
+          device.clearTimer();
+        }
       }
-    }
-  }
-
-  void deleteDevice(String areaId, String deviceId) async {
-    if (_uid == null) return;
-    final areaIndex = _areas.indexWhere((a) => a.id == areaId);
-    if (areaIndex != -1) {
-      final area = _areas[areaIndex];
-      area.devices.removeWhere((d) => d.id == deviceId);
-      
-      // Optimistic UI Update
       notifyListeners();
       
       try {
+        final updateData = <String, dynamic>{
+          'isSoilRenovation': newRenovation,
+          'devices': area.devices.map((d) => d.toMap()).toList(),
+        };
+        if (newRenovation) {
+          updateData['isAutoMode'] = false;
+        }
         await _firestore
             .collection('users')
             .doc(_uid)
             .collection('areas')
             .doc(areaId)
-            .update({
-          'devices': area.devices.map((d) => d.toMap()).toList()
-        });
+            .update(updateData);
       } catch (e) {
-        debugPrint('Error deleting device: $e');
+        debugPrint('Error toggling soil renovation: $e');
       }
     }
   }
@@ -452,7 +586,6 @@ class GardenProvider extends ChangeNotifier {
   }
 
   Future<void> refreshData() async {
-    // Weather is the only non-realtime data here that needs manual refresh
     await fetchWeather();
   }
 

@@ -10,6 +10,8 @@ class DeviceProvider extends ChangeNotifier {
   String? _uid;
   String? _currentDeviceId;
   StreamSubscription<QuerySnapshot>? _subscription;
+  bool _disposed = false;
+  Timer? _refreshTimer;
   
   // Link to AuthProvider to trigger logout if kicked out
   dynamic _authProvider;
@@ -27,7 +29,15 @@ class DeviceProvider extends ChangeNotifier {
     _currentDeviceId = data.id;
     if (_uid != null) {
       _listenToDevices();
+      _startRefreshTimer();
     }
+  }
+
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      notifyListeners(); // Refresh UI for online status
+    });
   }
 
   void updateAuth(dynamic auth) {
@@ -67,14 +77,18 @@ class DeviceProvider extends ChangeNotifier {
         }
         
         final data = doc.data();
-        final lastActive =
-            (data['lastActive'] as Timestamp?)?.toDate() ?? DateTime.now();
+        DateTime lastActive = DateTime.now();
+        final dynamic rawLastActive = data['lastActive'];
+        if (rawLastActive != null && rawLastActive is Timestamp) {
+          lastActive = rawLastActive.toDate();
+        }
         return LoggedDevice(
           id: doc.id,
           name: data['name'] ?? 'Unknown Device',
           platform: data['platform'] ?? 'unknown',
           lastActive: lastActive,
-          isOnline: data['isOnline'] ?? false,
+          isOnline: (data['isOnline'] ?? false) && 
+                   DateTime.now().difference(lastActive).inMinutes < 3, // 3 min buffer
           isCurrentDevice: doc.id == _currentDeviceId,
         );
       }).toList();
@@ -131,7 +145,16 @@ class DeviceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _subscription?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
   }
 }

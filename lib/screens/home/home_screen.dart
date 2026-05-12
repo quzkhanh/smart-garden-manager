@@ -8,7 +8,6 @@ import '../../providers/alert_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/area_card.dart';
-import '../../widgets/common/add_area_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,14 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final result = await showDialog<Map<String, dynamic>>(
-            context: context,
-            builder: (ctx) => const AddAreaDialog(),
-          );
-          if (result != null) {
-            final name = result['name'] as String;
-            final devices = result['devices'] as List<String>;
-            await garden.addArea(name, initialDeviceTypes: devices);
+          final name = await _showAddAreaDialog(context);
+          if (name != null && name.trim().isNotEmpty) {
+            await garden.addArea(name.trim());
           }
         },
         backgroundColor: AppColors.primaryGreen,
@@ -347,5 +341,77 @@ class _HomeScreenState extends State<HomeScreen> {
         .trim();
         
     return formatted;
+  }
+
+  Future<String?> _showAddAreaDialog(BuildContext context) {
+    final controller = TextEditingController();
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(l10n.t('add_area')),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.t('area_name'),
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: l10n.t('area_name_hint'),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Mỗi khu vực sẽ có 3 thiết bị cố định: Máy bơm, Quạt, Đèn.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.t('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(ctx, name);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text(l10n.t('confirm')),
+          ),
+        ],
+      ),
+    );
   }
 }

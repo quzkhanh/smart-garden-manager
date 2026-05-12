@@ -10,7 +10,7 @@ import '../utils/device_info_util.dart';
 
 enum AuthState { unauthenticated, otpSent, verifying, qrWaiting, authenticated }
 
-class AuthProvider extends ChangeNotifier {
+class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AuthState _state = AuthState.unauthenticated;
@@ -24,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   String _lastError = '';
   String? _masterUid;
   bool _isFirstTime = true;
+  Timer? _heartbeatTimer;
 
   AuthState get state => _state;
   String get phoneNumber => _phoneNumber;
@@ -47,6 +48,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   AuthProvider() {
+    WidgetsBinding.instance.addObserver(this);
     _initAuth();
   }
 
@@ -67,9 +69,67 @@ class AuthProvider extends ChangeNotifier {
         if (_isFirstTime) {
           completeOnboarding();
         }
+        _startHeartbeat();
         notifyListeners();
+      } else {
+        _stopHeartbeat();
       }
     });
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (isAuthenticated) {
+        _updateOnlineStatus(true);
+      } else {
+        _stopHeartbeat();
+      }
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  /// Track app lifecycle to update online status
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (uid == null) return;
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _updateOnlineStatus(true);
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        _updateOnlineStatus(false);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Update online/offline status in Firestore for the current device
+  Future<void> _updateOnlineStatus(bool isOnline) async {
+    if (uid == null) return;
+    try {
+      final deviceData = await DeviceInfoUtil.getDeviceData();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('logged_devices')
+          .doc(deviceData.id)
+          .update({
+        'isOnline': isOnline,
+        'lastActive': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Failed to update online status: $e');
+    }
   }
 
   void setPhoneNumber(String phone) {
@@ -190,90 +250,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginWithEmail(String email, String password, {bool isRegister = false}) async {
-    _isLoading = true;
-    _lastError = '';
-    notifyListeners();
-
-    try {
-      UserCredential credential;
-      if (isRegister) {
-        credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      } else {
-        credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
-      }
-      
-      final user = credential.user;
-      if (user != null) {
-        await _saveDeviceLoginInfo(user.uid);
-      }
-      _state = AuthState.authenticated;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      if (e is FirebaseAuthException) {
-        switch (e.code) {
-          case 'user-not-found':
-            _lastError = 'Tài khoản không tồn tại.';
-            break;
-          case 'wrong-password':
-            _lastError = 'Mật khẩu không chính xác.';
-            break;
-          case 'email-already-in-use':
-            _lastError = 'Email này đã được đăng ký.';
-            break;
-          case 'invalid-email':
-            _lastError = 'Email không hợp lệ.';
-            break;
-          case 'weak-password':
-            _lastError = 'Mật khẩu quá yếu (cần tối thiểu 6 ký tự).';
-            break;
-          case 'invalid-credential':
-            _lastError = 'Email hoặc mật khẩu không chính xác.';
-            break;
-          default:
-            _lastError = e.message ?? 'Đã có lỗi xảy ra.';
-        }
-      } else {
-        _lastError = 'Lỗi không xác định: ${e.toString()}';
-      }
-      notifyListeners();
-      debugPrint('Email Auth Failed: $e');
-      return false;
-    }
-  }
-
-  Future<bool> sendPasswordResetEmail(String email) async {
-    _isLoading = true;
-    _lastError = '';
-    notifyListeners();
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isLoading = false;
-      if (e is FirebaseAuthException) {
-        switch (e.code) {
-          case 'user-not-found':
-            _lastError = 'Không tìm thấy tài khoản với email này.';
-            break;
-          case 'invalid-email':
-            _lastError = 'Email không hợp lệ.';
-            break;
-          default:
-            _lastError = e.message ?? 'Đã có lỗi xảy ra.';
-        }
-      } else {
-        _lastError = 'Lỗi gửi yêu cầu: $e';
-      }
-      notifyListeners();
-      return false;
-    }
-  }
+  // Email/password login removed — app uses phone OTP + QR only
 
   Future<void> startQrLogin() async {
     _state = AuthState.qrWaiting;
@@ -378,6 +355,8 @@ class AuthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _stopHeartbeat();
+    WidgetsBinding.instance.removeObserver(this);
     _qrSubscription?.cancel();
     super.dispose();
   }
@@ -395,6 +374,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       final user = _auth.currentUser;
       if (user != null && uid != null) {
+        // Set offline before removing the device doc
+        await _updateOnlineStatus(false);
         final deviceData = await DeviceInfoUtil.getDeviceData();
         await FirebaseFirestore.instance
             .collection('users')

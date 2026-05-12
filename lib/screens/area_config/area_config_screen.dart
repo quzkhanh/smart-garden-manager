@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/area_config.dart';
 import '../../models/automation_rule.dart';
+import '../../models/watering_schedule.dart';
 import '../../providers/garden_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_colors.dart';
@@ -422,6 +423,88 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               ),
             ).animate().fadeIn(delay: 320.ms, duration: 400.ms),
 
+            const SizedBox(height: 20),
+
+            // ── Watering Schedules (Scheduled Watering) ──────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: ConfigSectionHeader(
+                    icon: Icons.schedule_rounded,
+                    color: AppColors.primaryGreen,
+                    title: 'Lịch tưới định kỳ',
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showScheduleDialog(context, garden),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Thêm lịch'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 320.ms),
+
+            if (area.schedules.isEmpty)
+              AppCard(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        Icon(Icons.timer_outlined, size: 40, color: Colors.grey.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Chưa có lịch tưới định kỳ nào',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ).animate().fadeIn(delay: 330.ms)
+            else
+              Column(
+                children: area.schedules.map((schedule) => AppCard(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.water_drop, color: AppColors.primaryGreen, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(schedule.deviceName, style: theme.textTheme.titleSmall),
+                            Text(
+                              '${schedule.hour.toString().padLeft(2, '0')}:${schedule.minute.toString().padLeft(2, '0')} • ${schedule.durationMinutes} phút',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              _formatDays(schedule.daysOfWeek),
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                        onPressed: () => garden.deleteWateringSchedule(widget.areaId, schedule.id),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ).animate().fadeIn(delay: 330.ms),
+
             const SizedBox(height: 32),
 
             // ── Custom Automations ────────────────────────────────────────
@@ -596,4 +679,117 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
   }
 
   String _formatTime(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  String _formatDays(List<int> days) {
+    if (days.length == 7) return 'Hàng ngày';
+    final List<String> labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    return days.map((d) => labels[d - 1]).join(', ');
+  }
+
+  void _showScheduleDialog(BuildContext context, GardenProvider garden) {
+    final area = garden.getArea(widget.areaId);
+    if (area == null) return;
+
+    String selectedDeviceId = area.devices.first.id;
+    String selectedDeviceName = area.devices.first.name;
+    TimeOfDay selectedTime = const TimeOfDay(hour: 6, minute: 0);
+    int duration = 10;
+    List<int> selectedDays = [1, 2, 3, 4, 5, 6, 7];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Thêm lịch tưới'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Thiết bị:', style: TextStyle(fontWeight: FontWeight.bold)),
+                DropdownButton<String>(
+                  value: selectedDeviceId,
+                  isExpanded: true,
+                  items: area.devices.map((d) => DropdownMenuItem(
+                    value: d.id,
+                    child: Text(d.name),
+                  )).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() {
+                        selectedDeviceId = val;
+                        selectedDeviceName = area.devices.firstWhere((d) => d.id == val).name;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('Thời gian:', style: TextStyle(fontWeight: FontWeight.bold)),
+                ListTile(
+                  title: Text('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final picked = await showTimePicker(context: context, initialTime: selectedTime);
+                    if (picked != null) setDialogState(() => selectedTime = picked);
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('Thời lượng (phút):', style: TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.remove), onPressed: () => setDialogState(() => duration = (duration > 1 ? duration - 1 : 1))),
+                    Text('$duration'),
+                    IconButton(icon: const Icon(Icons.add), onPressed: () => setDialogState(() => duration++)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text('Ngày trong tuần:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 4,
+                  children: List.generate(7, (index) {
+                    final day = index + 1;
+                    final isSelected = selectedDays.contains(day);
+                    final labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+                    return FilterChip(
+                      label: Text(labels[index], style: TextStyle(fontSize: 10, color: isSelected ? Colors.white : Colors.black)),
+                      selected: isSelected,
+                      selectedColor: AppColors.primaryGreen,
+                      onSelected: (val) {
+                        setDialogState(() {
+                          if (val) selectedDays.add(day);
+                          else selectedDays.remove(day);
+                        });
+                      },
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () {
+                if (selectedDays.isEmpty) return;
+                final schedule = WateringSchedule(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  deviceId: selectedDeviceId,
+                  deviceName: selectedDeviceName,
+                  hour: selectedTime.hour,
+                  minute: selectedTime.minute,
+                  durationMinutes: duration,
+                  daysOfWeek: selectedDays,
+                );
+                garden.addWateringSchedule(widget.areaId, schedule);
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen, foregroundColor: Colors.white),
+              child: const Text('Thêm'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

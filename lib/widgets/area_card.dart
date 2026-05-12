@@ -59,22 +59,54 @@ class AreaCard extends StatelessWidget {
                       height: 12,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: area.isAutoMode
-                            ? AppColors.primaryGreen
-                            : AppColors.alertMedium,
+                        color: !area.isOnline
+                            ? Colors.grey
+                            : area.isSoilRenovation
+                                ? Colors.orange
+                                : area.isAutoMode
+                                    ? AppColors.primaryGreen
+                                    : AppColors.alertMedium,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  area.isAutoMode ? l10n.t('auto_mode') : l10n.t('manual_mode'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: area.isAutoMode
-                        ? AppColors.primaryGreen
-                        : AppColors.alertMedium,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      area.isSoilRenovation
+                          ? 'Cải tạo đất'
+                          : area.isAutoMode ? l10n.t('auto_mode') : l10n.t('manual_mode'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: !area.isOnline
+                            ? Colors.grey
+                            : area.isSoilRenovation
+                                ? Colors.orange
+                                : area.isAutoMode
+                                    ? AppColors.primaryGreen
+                                    : AppColors.alertMedium,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (!area.isOnline) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Ngoại tuyến',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 16),
 

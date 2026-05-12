@@ -13,6 +13,7 @@ class AlertProvider extends ChangeNotifier {
   bool _isLoading = true;
   String? _uid;
   StreamSubscription? _subscription;
+  bool _disposed = false;
 
   List<Alert> get alerts => _filteredAlerts;
   List<Alert> get allAlerts => _alerts;
@@ -36,8 +37,16 @@ class AlertProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _subscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
   }
 
   void updateAuth(AuthProvider auth) {

@@ -11,7 +11,6 @@ class DeviceTile extends StatelessWidget {
   final ValueChanged<bool>? onToggle;
   final VoidCallback? onTimerTap;
   final VoidCallback? onCancelTimer;
-  final VoidCallback? onDelete;
 
   const DeviceTile({
     super.key,
@@ -20,7 +19,6 @@ class DeviceTile extends StatelessWidget {
     this.onToggle,
     this.onTimerTap,
     this.onCancelTimer,
-    this.onDelete,
   });
 
   @override
@@ -98,17 +96,6 @@ class DeviceTile extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onDelete != null) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(LucideIcons.trash2, size: 18),
-                  color: AppColors.alertHigh.withValues(alpha: 0.6),
-                  onPressed: onDelete,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
             ],
           ),
           // Timer countdown display
