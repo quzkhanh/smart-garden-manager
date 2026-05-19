@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/activity_log_service.dart';
 import '../../theme/app_colors.dart';
 
 class AccessManagementScreen extends StatefulWidget {
@@ -28,6 +29,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
     _phoneController.clear();
     _nameController.clear();
     _isAdminRole = false;
+    final auth = context.read<AuthProvider>();
 
     showDialog(
       context: context,
@@ -77,7 +79,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     if (_phoneController.text.trim().isEmpty || _nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin!')),
                       );
                       return;
@@ -90,22 +92,35 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
                     } else if (!phone.startsWith('+')) {
                       phone = '+84$phone';
                     }
+                    final memberName = _nameController.text.trim();
 
                     try {
                       await FirebaseFirestore.instance.collection('allowed_phones').doc(phone).set({
-                        'name': _nameController.text.trim(),
+                        'name': memberName,
                         'role': _isAdminRole ? 'admin' : 'member',
                         'addedAt': FieldValue.serverTimestamp(),
                       });
-                      if (context.mounted) {
+
+                      // Log activity
+                      if (auth.uid != null) {
+                        ActivityLogService.log(
+                          uid: auth.uid!,
+                          type: ActivityType.memberAdd,
+                          description: 'Thêm thành viên "$memberName" ($phone)',
+                          actorName: auth.displayName,
+                          actorPhone: auth.phoneNumber,
+                        );
+                      }
+
+                      if (ctx.mounted) {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           const SnackBar(content: Text('Thêm thành viên thành công!')),
                         );
                       }
                     } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(content: Text('Lỗi: $e')),
                         );
                       }
@@ -123,6 +138,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
   }
 
   void _deleteMember(String phone, String name) {
+    final auth = context.read<AuthProvider>();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -137,15 +153,27 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
             onPressed: () async {
               try {
                 await FirebaseFirestore.instance.collection('allowed_phones').doc(phone).delete();
-                if (context.mounted) {
+
+                // Log activity
+                if (auth.uid != null) {
+                  ActivityLogService.log(
+                    uid: auth.uid!,
+                    type: ActivityType.memberRemove,
+                    description: 'Xóa thành viên "$name" ($phone)',
+                    actorName: auth.displayName,
+                    actorPhone: auth.phoneNumber,
+                  );
+                }
+
+                if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(content: Text('Đã xóa thành viên!')),
                   );
                 }
               } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
                     SnackBar(content: Text('Lỗi: $e')),
                   );
                 }
@@ -207,7 +235,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
 
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: role == 'admin' ? AppColors.primaryGreen.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                  backgroundColor: role == 'admin' ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2),
                   child: Icon(
                     role == 'admin' ? Icons.admin_panel_settings : Icons.person,
                     color: role == 'admin' ? AppColors.primaryGreen : Colors.grey,

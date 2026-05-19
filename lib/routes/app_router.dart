@@ -17,6 +17,7 @@ import '../screens/devices/devices_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/access_management_screen.dart';
+import '../screens/activity/activity_log_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -97,6 +98,11 @@ class AppRouter {
           path: '/access-management',
           parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => const AccessManagementScreen(),
+        ),
+        GoRoute(
+          path: '/activity-log',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (context, state) => const ActivityLogScreen(),
         ),
 
         // Main app with bottom navigation

@@ -10,6 +10,7 @@ import '../models/automation_rule.dart';
 import '../models/watering_schedule.dart';
 import '../models/alert.dart';
 import '../services/weather_service.dart';
+import '../services/activity_log_service.dart';
 import 'auth_provider.dart';
 
 class GardenProvider extends ChangeNotifier {
@@ -17,6 +18,7 @@ class GardenProvider extends ChangeNotifier {
   List<Area> _areas = [];
   bool _isLoading = true;
   String? _uid;
+  AuthProvider? _authProvider;
   StreamSubscription? _areasSubscription;
   Timer? _timerCheckTimer;
   Timer? _weatherTimer;
@@ -82,6 +84,7 @@ class GardenProvider extends ChangeNotifier {
   }
 
   void updateAuth(AuthProvider auth) {
+    _authProvider = auth;
     final newUid = auth.uid;
     if (_uid == newUid) return;
     
@@ -178,11 +181,22 @@ class GardenProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      await _firestore
+      final docRef = await _firestore
           .collection('users')
           .doc(_uid)
           .collection('areas')
           .add(newArea.toMap());
+
+      // Log activity
+      ActivityLogService.log(
+        uid: _uid!,
+        type: ActivityType.areaAdd,
+        description: 'Thêm khu vườn "$name"',
+        actorName: _authProvider?.displayName ?? '',
+        actorPhone: _authProvider?.phoneNumber ?? '',
+        areaId: docRef.id,
+        areaName: name,
+      );
     } catch (e) {
       debugPrint('Error adding area: $e');
     }
@@ -191,12 +205,27 @@ class GardenProvider extends ChangeNotifier {
   Future<void> deleteArea(String areaId) async {
     if (_uid == null) return;
     try {
+      // Get area name before deleting for the log
+      final area = getArea(areaId);
+      final areaName = area?.name ?? areaId;
+
       await _firestore
           .collection('users')
           .doc(_uid)
           .collection('areas')
           .doc(areaId)
           .delete();
+
+      // Log activity
+      ActivityLogService.log(
+        uid: _uid!,
+        type: ActivityType.areaDelete,
+        description: 'Xóa khu vườn "$areaName"',
+        actorName: _authProvider?.displayName ?? '',
+        actorPhone: _authProvider?.phoneNumber ?? '',
+        areaId: areaId,
+        areaName: areaName,
+      );
     } catch (e) {
       debugPrint('Error deleting area: $e');
     }
@@ -282,6 +311,17 @@ class GardenProvider extends ChangeNotifier {
               .update({
             'devices': area.devices.map((d) => d.toMap()).toList()
           });
+
+          // Log activity
+          ActivityLogService.log(
+            uid: _uid!,
+            type: ActivityType.deviceToggle,
+            description: '${device.isOn ? "Bật" : "Tắt"} ${device.name} (${area.name})',
+            actorName: _authProvider?.displayName ?? '',
+            actorPhone: _authProvider?.phoneNumber ?? '',
+            areaId: areaId,
+            areaName: area.name,
+          );
         } catch (e) {
           debugPrint('Error toggling device: $e');
         }

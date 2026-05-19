@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart' show sha256;
 import 'dart:convert' show utf8;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/device_info_util.dart';
+import '../services/activity_log_service.dart';
 
 enum AuthState { unauthenticated, otpSent, verifying, qrWaiting, authenticated }
 
@@ -27,6 +28,7 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _heartbeatTimer;
   bool _disposed = false;
   bool _isAdmin = false;
+  String _displayName = '';
 
   AuthState get state => _state;
   String get phoneNumber {
@@ -42,6 +44,7 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? get uid => _masterUid ?? _auth.currentUser?.uid;
   bool get isFirstTime => _isFirstTime;
   bool get isAdmin => _isAdmin;
+  String get displayName => _displayName;
 
   /// Normalize local phone number to E.164 format
   /// e.g. 0912345678 → +84912345678
@@ -93,6 +96,9 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
       final normalized = _normalizePhone(phone);
       final doc = await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).get();
       if (doc.exists) {
+        // Load display name
+        _displayName = doc.data()?['name'] as String? ?? '';
+
         if (doc.data()?['role'] == 'admin') {
           _isAdmin = true;
         } else {
@@ -106,9 +112,46 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
           }
         }
         notifyListeners();
+      } else {
+        // Nếu số điện thoại chưa có trong allowed_phones, tự tạo document
+        await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).set({
+          'name': '',
+          'role': 'admin',
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+        _isAdmin = true;
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error checking admin status: $e');
+    }
+  }
+
+  /// Update the user's display name
+  Future<void> updateDisplayName(String newName) async {
+    final phone = _auth.currentUser?.phoneNumber ?? _phoneNumber;
+    if (phone.isEmpty) return;
+    try {
+      final normalized = _normalizePhone(phone);
+      await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).update({
+        'name': newName,
+      });
+      final oldName = _displayName;
+      _displayName = newName;
+      notifyListeners();
+
+      // Log activity
+      if (uid != null) {
+        ActivityLogService.log(
+          uid: uid!,
+          type: ActivityType.nameChange,
+          description: 'Đổi tên hiển thị: "$oldName" → "$newName"',
+          actorName: newName,
+          actorPhone: normalized,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating display name: $e');
     }
   }
 

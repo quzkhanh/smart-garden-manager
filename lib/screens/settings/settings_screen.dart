@@ -61,12 +61,39 @@ class SettingsScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              l10n.t('user'),
-                              style: theme.textTheme.titleMedium,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    auth.displayName.isNotEmpty ? auth.displayName : l10n.t('user'),
+                                    style: theme.textTheme.titleMedium,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _showEditNameDialog(context, auth),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(LucideIcons.pencil, size: 14, color: AppColors.primaryGreen),
+                                  ),
+                                ),
+                                if (auth.isAdmin) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('Admin', style: TextStyle(fontSize: 10, color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ],
                             ),
                             Text(
-                              auth.phoneNumber.isNotEmpty ? auth.phoneNumber : '091 234 5678',
+                              auth.phoneNumber.isNotEmpty ? auth.phoneNumber : '---',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.textTheme.bodySmall?.color,
                               ),
@@ -183,11 +210,22 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 8),
               AppCard(
                 padding: EdgeInsets.zero,
-                child: _ThemeOption(
-                  icon: LucideIcons.users,
-                  label: 'Quản lý thành viên',
-                  isSelected: false,
-                  onTap: () => context.push('/access-management'),
+                child: Column(
+                  children: [
+                    _ThemeOption(
+                      icon: LucideIcons.users,
+                      label: 'Quản lý thành viên',
+                      isSelected: false,
+                      onTap: () => context.push('/access-management'),
+                    ),
+                    Divider(height: 1, indent: 56, color: theme.dividerColor.withValues(alpha: 0.05)),
+                    _ThemeOption(
+                      icon: LucideIcons.history,
+                      label: 'Lịch sử hoạt động',
+                      isSelected: false,
+                      onTap: () => context.push('/activity-log'),
+                    ),
+                  ],
                 ),
               ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
               const SizedBox(height: 24),
@@ -364,6 +402,51 @@ class SettingsScreen extends StatelessWidget {
                 child: Text(l10n.t('cancel')),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditNameDialog(BuildContext context, AuthProvider auth) {
+    final controller = TextEditingController(text: auth.displayName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Đổi tên hiển thị'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Nhập tên của bạn',
+            prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                auth.updateDisplayName(newName);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Đã cập nhật tên hiển thị!')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Lưu'),
           ),
         ],
       ),
