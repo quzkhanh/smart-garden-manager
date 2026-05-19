@@ -171,6 +171,28 @@ class SettingsScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // Admin Section
+            if (auth.isAdmin) ...[
+              Text(
+                'QUẢN TRỊ VIÊN',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.textTheme.bodySmall?.color,
+                  letterSpacing: 1.1,
+                ),
+              ).animate().fadeIn(delay: 100.ms),
+              const SizedBox(height: 8),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: _ThemeOption(
+                  icon: LucideIcons.users,
+                  label: 'Quản lý thành viên',
+                  isSelected: false,
+                  onTap: () => context.push('/access-management'),
+                ),
+              ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+              const SizedBox(height: 24),
+            ],
+
             // Language section
             Text(
               l10n.t('language'),
