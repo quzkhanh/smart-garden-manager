@@ -63,6 +63,26 @@ class ActivityLogService {
         .snapshots();
   }
 
+  /// Delete all activity logs
+  static Future<void> clearAllLogs(String uid) async {
+    try {
+      final batch = _firestore.batch();
+      final snapshots = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('activity_logs')
+          .get();
+      
+      for (var doc in snapshots.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Failed to clear logs: $e');
+    }
+  }
+
   /// Get icon for activity type
   static String getEmoji(String type) {
     switch (type) {

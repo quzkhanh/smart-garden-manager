@@ -35,6 +35,43 @@ class ActivityLogScreen extends StatelessWidget {
           ),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          if (auth.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+              tooltip: 'Xóa lịch sử',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Xóa toàn bộ lịch sử?'),
+                    content: const Text('Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa tất cả lịch sử hoạt động không?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Hủy'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          if (uid != null) {
+                            await ActivityLogService.clearAllLogs(uid);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Đã xóa toàn bộ lịch sử')),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        child: const Text('Xóa'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: uid == null
           ? const Center(child: Text('Chưa đăng nhập'))
