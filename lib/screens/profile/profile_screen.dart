@@ -173,6 +173,19 @@ class ProfileScreen extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
+                if (auth.isAdmin) ...[
+                  _buildMenuItem(
+                    icon: Icons.admin_panel_settings_rounded,
+                    title: 'Quản lý thành viên',
+                    subtitle: 'Thêm/Xóa người dùng',
+                    onTap: () => context.push('/access-management'),
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 56,
+                    color: theme.dividerColor.withValues(alpha: 0.05),
+                  ),
+                ],
                 _buildMenuItem(
                   icon: Icons.language_rounded,
                   title: l10n.t('language'),

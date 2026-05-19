@@ -26,6 +26,7 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool _isFirstTime = true;
   Timer? _heartbeatTimer;
   bool _disposed = false;
+  bool _isAdmin = false;
 
   AuthState get state => _state;
   String get phoneNumber {
@@ -40,6 +41,7 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   String get lastError => _lastError;
   String? get uid => _masterUid ?? _auth.currentUser?.uid;
   bool get isFirstTime => _isFirstTime;
+  bool get isAdmin => _isAdmin;
 
   /// Normalize local phone number to E.164 format
   /// e.g. 0912345678 → +84912345678
@@ -75,11 +77,28 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
           completeOnboarding();
         }
         _startHeartbeat();
+        _checkAdminStatus();
         notifyListeners();
       } else {
         _stopHeartbeat();
+        _isAdmin = false;
       }
     });
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final phone = _auth.currentUser?.phoneNumber ?? _phoneNumber;
+    if (phone.isEmpty) return;
+    try {
+      final normalized = _normalizePhone(phone);
+      final doc = await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).get();
+      if (doc.exists) {
+        _isAdmin = doc.data()?['role'] == 'admin';
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error checking admin status: $e');
+    }
   }
 
   void _startHeartbeat() {

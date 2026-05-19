@@ -16,6 +16,7 @@ import '../screens/alerts/alerts_screen.dart';
 import '../screens/devices/devices_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/profile/access_management_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -91,6 +92,11 @@ class AppRouter {
             final areaId = state.pathParameters['areaId']!;
             return AreaConfigScreen(areaId: areaId);
           },
+        ),
+        GoRoute(
+          path: '/access-management',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (context, state) => const AccessManagementScreen(),
         ),
 
         // Main app with bottom navigation
