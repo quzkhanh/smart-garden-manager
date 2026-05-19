@@ -187,6 +187,129 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
     );
   }
 
+  void _showEditMemberDialog(BuildContext context, String oldPhone, String oldName, String oldRole) {
+    _nameController.text = oldName;
+    _phoneController.text = oldPhone;
+    _isAdminRole = oldRole == 'admin';
+    final auth = context.read<AuthProvider>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Chỉnh sửa Thành Viên'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên hiển thị',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Số điện thoại',
+                      prefixIcon: Icon(Icons.phone),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: const Text('Quyền Quản Trị (Admin)'),
+                    subtitle: const Text('Có thể thêm/xóa người khác'),
+                    value: _isAdminRole,
+                    onChanged: (val) {
+                      setState(() {
+                        _isAdminRole = val;
+                      });
+                    },
+                    activeColor: AppColors.primaryGreen,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newName = _nameController.text.trim();
+                    String newPhone = _phoneController.text.trim().replaceAll(RegExp(r'[\s\-()]'), '');
+                    if (newPhone.startsWith('0')) {
+                      newPhone = '+84${newPhone.substring(1)}';
+                    } else if (!newPhone.startsWith('+')) {
+                      newPhone = '+84$newPhone';
+                    }
+
+                    if (newName.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Tên không được để trống!')),
+                      );
+                      return;
+                    }
+
+                    try {
+                      // Nếu số điện thoại thay đổi → xóa doc cũ, tạo doc mới
+                      if (newPhone != oldPhone) {
+                        await FirebaseFirestore.instance.collection('allowed_phones').doc(oldPhone).delete();
+                      }
+                      await FirebaseFirestore.instance.collection('allowed_phones').doc(newPhone).set({
+                        'name': newName,
+                        'role': _isAdminRole ? 'admin' : 'member',
+                        'addedAt': FieldValue.serverTimestamp(),
+                      });
+
+                      // Log activity
+                      if (auth.uid != null) {
+                        final changes = <String>[];
+                        if (oldName != newName) changes.add('tên: "$oldName" → "$newName"');
+                        if (oldPhone != newPhone) changes.add('SĐT: $oldPhone → $newPhone');
+                        final newRole = _isAdminRole ? 'admin' : 'member';
+                        if (oldRole != newRole) changes.add('quyền: $oldRole → $newRole');
+                        
+                        if (changes.isNotEmpty) {
+                          ActivityLogService.log(
+                            uid: auth.uid!,
+                            type: ActivityType.configChange,
+                            description: 'Cập nhật thành viên: ${changes.join(", ")}',
+                            actorName: auth.displayName,
+                            actorPhone: auth.phoneNumber,
+                          );
+                        }
+                      }
+
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Đã cập nhật thông tin thành viên!')),
+                        );
+                      }
+                    } catch (e) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Lỗi: $e')),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+                  child: const Text('Lưu'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -229,11 +352,12 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
               final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
               final phone = doc.id;
-              final name = data['name'] ?? 'Chưa đặt tên';
+              final name = (data['name'] as String?)?.isNotEmpty == true ? data['name'] : 'Chưa đặt tên';
               final role = data['role'] ?? 'member';
               final isMe = phone == currentUserPhone;
 
               return ListTile(
+                onTap: () => _showEditMemberDialog(context, phone, name, role),
                 leading: CircleAvatar(
                   backgroundColor: role == 'admin' ? AppColors.primaryGreen.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2),
                   child: Icon(
@@ -241,12 +365,38 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
                     color: role == 'admin' ? AppColors.primaryGreen : Colors.grey,
                   ),
                 ),
-                title: Text('$name ${isMe ? "(Bạn)" : ""}'),
-                subtitle: Text(phone),
-                trailing: isMe ? null : IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _deleteMember(phone, name),
+                title: Row(
+                  children: [
+                    Flexible(child: Text('$name ${isMe ? "(Bạn)" : ""}')),
+                    if (role == 'admin') ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('Admin', style: TextStyle(fontSize: 9, color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
                 ),
+                subtitle: Text(phone, style: const TextStyle(fontSize: 12)),
+                trailing: isMe
+                    ? const Icon(Icons.edit_outlined, size: 18, color: AppColors.primaryGreen)
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primaryGreen),
+                            onPressed: () => _showEditMemberDialog(context, phone, name, role),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            onPressed: () => _deleteMember(phone, name),
+                          ),
+                        ],
+                      ),
               );
             },
           );
