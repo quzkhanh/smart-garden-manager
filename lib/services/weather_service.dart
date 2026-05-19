@@ -40,6 +40,11 @@ class WeatherService {
   static const String _apiKey = '60b861b5a9474ec9d2b59c1a013ed5bf'; 
   static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
 
+  // Cache GPS position to avoid repeated slow calls (especially on web)
+  Position? _cachedPosition;
+  DateTime? _lastPositionTime;
+  static const _positionCacheDuration = Duration(minutes: 30);
+
   Future<WeatherData?> fetchCurrentWeather({String language = 'vi'}) async {
     try {
       Position position = await _determinePosition();
@@ -86,32 +91,42 @@ class WeatherService {
   }
 
   Future<Position> _determinePosition() async {
+    // Return cached position if still fresh (avoid slow GPS on web)
+    if (_cachedPosition != null &&
+        _lastPositionTime != null &&
+        DateTime.now().difference(_lastPositionTime!) < _positionCacheDuration) {
+      return _cachedPosition!;
+    }
+
     try {
       bool serviceEnabled;
       LocationPermission permission;
 
       serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        return _fallbackPosition();
+        return _cachedPosition ?? _fallbackPosition();
       }
 
       permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          return _fallbackPosition();
+          return _cachedPosition ?? _fallbackPosition();
         }
       }
       
       if (permission == LocationPermission.deniedForever) {
-        return _fallbackPosition();
+        return _cachedPosition ?? _fallbackPosition();
       } 
 
-      return await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition();
+      _cachedPosition = position;
+      _lastPositionTime = DateTime.now();
+      return position;
     } catch (e) {
       // Fallback for Flutter Web or MissingPluginException
       print('Location error: $e. Using fallback.');
-      return _fallbackPosition();
+      return _cachedPosition ?? _fallbackPosition();
     }
   }
 

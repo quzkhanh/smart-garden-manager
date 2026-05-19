@@ -22,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
-    final alertProvider = context.watch<AlertProvider>();
+    final unreadAlertCount = context.select<AlertProvider, int>((p) => p.unreadCount);
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 800;
     final isMedium = screenWidth > 600;
@@ -140,9 +140,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         flex: 1,
                                         child: _buildCompactMetric(
                                           icon: LucideIcons.bellRing,
-                                          value: '${alertProvider.unreadCount}',
+                                          value: '$unreadAlertCount',
                                           label: l10n.t('alerts_count'),
-                                          color: alertProvider.unreadCount > 0 ? AppColors.alertHigh : Colors.grey,
+                                          color: unreadAlertCount > 0 ? AppColors.alertHigh : Colors.grey,
                                           isExpanded: true,
                                         ),
                                       ),

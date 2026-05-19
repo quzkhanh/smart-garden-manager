@@ -36,7 +36,22 @@ class DeviceProvider extends ChangeNotifier {
   void _startRefreshTimer() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      notifyListeners(); // Refresh UI for online status
+      // Recalculate online status (based on lastActive timestamp)
+      // Only notify if any device's computed online status actually changed
+      bool anyChanged = false;
+      for (final device in _devices) {
+        final wasOnline = device.isOnline;
+        final nowOnline = device.isCurrentDevice
+            ? true
+            : DateTime.now().difference(device.lastActive).inMinutes < 3;
+        if (wasOnline != nowOnline) {
+          anyChanged = true;
+          break;
+        }
+      }
+      if (anyChanged) {
+        notifyListeners();
+      }
     });
   }
 

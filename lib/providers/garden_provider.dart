@@ -29,6 +29,8 @@ class GardenProvider extends ChangeNotifier {
   final WeatherService _weatherService = WeatherService();
   WeatherData? _currentWeather;
   List<WeatherData> _forecast = [];
+  bool _hasActiveTimers = false; // Track if any device has an active timer
+  bool _orphanCleanupDone = false; // One-time cleanup flag
 
   List<Area> get areas => _areas;
   bool get isLoading => _isLoading;
@@ -42,11 +44,8 @@ class GardenProvider extends ChangeNotifier {
   List<WeatherData> get forecast => _forecast;
 
   GardenProvider() {
-    // Check timers every second
-    _timerCheckTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => _checkTimers(),
-    );
+    // Timer check is started on-demand only when a device has an active timer
+    // (see _startTimerCheckIfNeeded / _stopTimerCheckIfIdle)
     
     // Check weather every 15 minutes
     _weatherTimer = Timer.periodic(
@@ -120,29 +119,22 @@ class GardenProvider extends ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
       final List<Area> updatedAreas = [];
+      final List<_OrphanCleanup> orphansToClean = [];
+
       for (var doc in snapshot.docs) {
         try {
           final data = doc.data();
           final area = Area.fromMap(doc.id, data);
           updatedAreas.add(area);
 
-          // Auto-cleanup: remove orphaned schedules/rules from Firestore
-          // (e.g. schedules tied to removed light devices)
-          final rawSchedules = (data['schedules'] as List? ?? []);
-          final rawRules = (data['rules'] as List? ?? []);
-          if (rawSchedules.length != area.schedules.length ||
-              rawRules.length != area.rules.length) {
-            _firestore
-                .collection('users')
-                .doc(_uid)
-                .collection('areas')
-                .doc(doc.id)
-                .update({
-              'schedules': area.schedules.map((s) => s.toMap()).toList(),
-              'rules': area.rules.map((r) => r.toMap()).toList(),
-            }).catchError((e) {
-              debugPrint('Error cleaning orphaned data for ${doc.id}: $e');
-            });
+          // Collect orphaned data for one-time cleanup (not every snapshot)
+          if (!_orphanCleanupDone) {
+            final rawSchedules = (data['schedules'] as List? ?? []);
+            final rawRules = (data['rules'] as List? ?? []);
+            if (rawSchedules.length != area.schedules.length ||
+                rawRules.length != area.rules.length) {
+              orphansToClean.add(_OrphanCleanup(doc.id, area));
+            }
           }
         } catch (e) {
           debugPrint('Error parsing area ${doc.id}: $e');
@@ -150,12 +142,41 @@ class GardenProvider extends ChangeNotifier {
       }
       _areas = updatedAreas;
       _isLoading = false;
+
+      // Run orphan cleanup only once to avoid write→read→write loop
+      if (!_orphanCleanupDone && orphansToClean.isNotEmpty) {
+        _orphanCleanupDone = true;
+        _runOrphanCleanup(orphansToClean);
+      } else if (!_orphanCleanupDone) {
+        _orphanCleanupDone = true;
+      }
+
+      // Auto-manage timer check based on active timers
+      _updateTimerCheckState();
+
       notifyListeners();
     }, onError: (e) {
       debugPrint('Error listening to areas: $e');
       _isLoading = false;
       notifyListeners();
     });
+  }
+
+  /// Clean orphaned schedules/rules once (not inside real-time listener loop)
+  void _runOrphanCleanup(List<_OrphanCleanup> orphans) {
+    for (final orphan in orphans) {
+      _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('areas')
+          .doc(orphan.docId)
+          .update({
+        'schedules': orphan.area.schedules.map((s) => s.toMap()).toList(),
+        'rules': orphan.area.rules.map((r) => r.toMap()).toList(),
+      }).catchError((e) {
+        debugPrint('Error cleaning orphaned data for ${orphan.docId}: $e');
+      });
+    }
   }
 
   Future<void> addArea(String name) async {
@@ -341,6 +362,9 @@ class GardenProvider extends ChangeNotifier {
       if (deviceIndex != -1) {
         area.devices[deviceIndex].setTimer(duration);
         
+        // Start timer check loop since we now have an active timer
+        _startTimerCheckIfNeeded();
+        
         // Optimistic UI Update
         notifyListeners();
         
@@ -369,6 +393,9 @@ class GardenProvider extends ChangeNotifier {
       if (deviceIndex != -1) {
         area.devices[deviceIndex].clearTimer();
         
+        // Check if we can stop the timer loop
+        _updateTimerCheckState();
+        
         // Optimistic UI Update
         notifyListeners();
         
@@ -388,22 +415,58 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
+  /// Start the timer check loop only when needed (a device has an active timer)
+  void _startTimerCheckIfNeeded() {
+    if (_timerCheckTimer != null) return; // Already running
+    _hasActiveTimers = true;
+    _timerCheckTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _checkTimers(),
+    );
+  }
+
+  /// Stop the timer check loop when no devices have active timers
+  void _stopTimerCheckIfIdle() {
+    if (_timerCheckTimer == null) return;
+    _hasActiveTimers = false;
+    _timerCheckTimer?.cancel();
+    _timerCheckTimer = null;
+  }
+
+  /// Check if any device has an active timer and start/stop accordingly
+  void _updateTimerCheckState() {
+    final hasAnyTimer = _areas.any((a) =>
+        !a.isAutoMode && a.devices.any((d) => d.hasActiveTimer));
+    if (hasAnyTimer && !_hasActiveTimers) {
+      _startTimerCheckIfNeeded();
+    } else if (!hasAnyTimer && _hasActiveTimers) {
+      _stopTimerCheckIfIdle();
+    }
+  }
+
   /// Periodically check all device timers and toggle expired ones.
   void _checkTimers() {
     bool changed = false;
+    bool hasAnyTimer = false;
     for (final area in _areas) {
       if (area.isAutoMode) continue;
       for (final device in area.devices) {
-        if (device.hasActiveTimer && device.timerRemaining == Duration.zero) {
-          device.isOn = !device.isOn;
-          device.clearTimer();
-          changed = true;
+        if (device.hasActiveTimer) {
+          hasAnyTimer = true;
+          if (device.timerRemaining == Duration.zero) {
+            device.isOn = !device.isOn;
+            device.clearTimer();
+            changed = true;
+          }
         }
       }
     }
-    // Also notify every second if any device has an active timer (to update countdown)
-    final hasAnyTimer = _areas.any((a) =>
-        !a.isAutoMode && a.devices.any((d) => d.hasActiveTimer));
+
+    // Stop the check loop if no timers remain
+    if (!hasAnyTimer) {
+      _stopTimerCheckIfIdle();
+    }
+
     if (changed || hasAnyTimer) {
       notifyListeners();
     }
@@ -794,4 +857,11 @@ class GardenProvider extends ChangeNotifier {
       debugPrint('Error syncing devices for automation: $e');
     }
   }
+}
+
+/// Helper class for one-time orphan cleanup
+class _OrphanCleanup {
+  final String docId;
+  final Area area;
+  _OrphanCleanup(this.docId, this.area);
 }
