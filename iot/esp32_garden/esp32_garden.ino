@@ -76,6 +76,11 @@ float currentTemp = 0.0;
 float currentHumi = 0.0;
 int currentSoil = 0;
 
+// Cấu hình Local Fallback (Lưu NVS)
+float localMaxTemp = 40.0;
+int localSoilThreshold = 30;
+unsigned long lastConfigPoll = 0;
+
 // WiFiManager custom parameter callbacks
 bool shouldSaveConfig = false;
 
@@ -91,12 +96,16 @@ void loadConfigFromNVS() {
   nvsUserUid = preferences.getString("user_uid", "");
   nvsEmail = preferences.getString("email", "");
   nvsPassword = preferences.getString("password", "");
+  localMaxTemp = preferences.getFloat("max_temp", 40.0);
+  localSoilThreshold = preferences.getInt("soil_thresh", 30);
   preferences.end();
   
   Serial.println("=== NVS Config ===");
   Serial.println("Area ID: " + nvsAreaId);
   Serial.println("Email: " + nvsEmail);
   Serial.println("User UID: " + nvsUserUid);
+  Serial.println("Local Max Temp: " + String(localMaxTemp));
+  Serial.println("Local Soil Thresh: " + String(localSoilThreshold));
 }
 
 void saveConfigToNVS(const char* areaId, const char* email, const char* password) {
@@ -114,6 +123,17 @@ void saveConfigToNVS(const char* areaId, const char* email, const char* password
   Serial.println("=== Saved to NVS ===");
   Serial.println("Area ID: " + nvsAreaId);
   Serial.println("Email: " + nvsEmail);
+}
+
+void saveThresholdsToNVS(float t, int s) {
+  if (t == localMaxTemp && s == localSoilThreshold) return;
+  preferences.begin("garden", false);
+  preferences.putFloat("max_temp", t);
+  preferences.putInt("soil_thresh", s);
+  preferences.end();
+  localMaxTemp = t;
+  localSoilThreshold = s;
+  Serial.println("Updated Local Thresholds: Temp=" + String(t) + " Soil=" + String(s));
 }
 
 void saveUidToNVS(const char* uid) {
@@ -336,6 +356,33 @@ void pollDevices() {
   }
 }
 
+void pollConfig() {
+  if (!Firebase.ready() || !isConfigValid()) return;
+  String path = "users/" + nvsUserUid + "/areas/" + nvsAreaId;
+  
+  if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", path.c_str(), "config")) {
+    FirebaseJson &json = fbdo.jsonObject();
+    FirebaseJsonData d_temp, d_soil;
+    
+    float newTemp = localMaxTemp;
+    int newSoil = localSoilThreshold;
+    
+    if (json.get(d_temp, "fields/config/mapValue/fields/maxTemperature/doubleValue")) {
+      newTemp = d_temp.doubleValue;
+    } else if (json.get(d_temp, "fields/config/mapValue/fields/maxTemperature/integerValue")) {
+      newTemp = (float)d_temp.intValue;
+    }
+    
+    if (json.get(d_soil, "fields/config/mapValue/fields/soilMoistureThreshold/doubleValue")) {
+      newSoil = (int)d_soil.doubleValue;
+    } else if (json.get(d_soil, "fields/config/mapValue/fields/soilMoistureThreshold/integerValue")) {
+      newSoil = d_soil.intValue;
+    }
+    
+    saveThresholdsToNVS(newTemp, newSoil);
+  }
+}
+
 void checkPhysicalButtons() {
   bool btnPressed = false;
 
@@ -516,6 +563,12 @@ void loop() {
     pollDevices();
   }
 
+  // Đọc config 60s/lần (Tải ngưỡng dự phòng)
+  if (millis() - lastConfigPoll > 60000 || lastConfigPoll == 0) {
+    lastConfigPoll = millis();
+    pollConfig();
+  }
+
   // Đọc sensors 30s/lần 
   if (millis() - lastSensorUpdate > 30000 || lastSensorUpdate == 0) {
     lastSensorUpdate = millis();
@@ -529,6 +582,35 @@ void loop() {
     
     if(!isnan(currentTemp) && !isnan(currentHumi)) {
       updateSensors(currentTemp, currentHumi, currentSoil);
+    }
+  }
+
+  // === LOCAL FALLBACK AUTOMATION ===
+  // Chỉ chạy khi MẤT MẠNG (hoặc chưa connect Firebase) và đang ở chế độ AUTO (modeAuto == 0)
+  if (!Firebase.ready() && modeAuto == 0 && currentSoil != 0 && currentTemp != 0.0) {
+    bool changed = false;
+    
+    // 1. Đất khô -> Bật bơm
+    bool needPump = (currentSoil < localSoilThreshold);
+    if (isPumpOn != needPump) {
+      isPumpOn = needPump;
+      changed = true;
+    }
+    
+    // 2. Nóng -> Bật Quạt & Phun sương
+    bool needCooling = (currentTemp > localMaxTemp);
+    if (isFanOn != needCooling) {
+      isFanOn = needCooling;
+      changed = true;
+    }
+    if (isMistOn != needCooling) {
+      isMistOn = needCooling;
+      changed = true;
+    }
+    
+    if (changed) {
+      applyHardwareRelay();
+      needsCloudDeviceSync = true; // Đánh dấu để khi có mạng sẽ đồng bộ Relay State lên Cloud
     }
   }
   
