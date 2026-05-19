@@ -303,16 +303,7 @@ class GardenProvider extends ChangeNotifier {
         notifyListeners();
         
         try {
-          await _firestore
-              .collection('users')
-              .doc(_uid)
-              .collection('areas')
-              .doc(areaId)
-              .update({
-            'devices': area.devices.map((d) => d.toMap()).toList()
-          });
-
-          // Log activity
+          // Log activity immediately for instant UI feedback
           ActivityLogService.log(
             uid: _uid!,
             type: ActivityType.deviceToggle,
@@ -322,6 +313,15 @@ class GardenProvider extends ChangeNotifier {
             areaId: areaId,
             areaName: area.name,
           );
+
+          await _firestore
+              .collection('users')
+              .doc(_uid)
+              .collection('areas')
+              .doc(areaId)
+              .update({
+            'devices': area.devices.map((d) => d.toMap()).toList()
+          });
         } catch (e) {
           debugPrint('Error toggling device: $e');
         }

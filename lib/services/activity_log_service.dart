@@ -44,7 +44,7 @@ class ActivityLogService {
         'actorPhone': actorPhone ?? '',
         'areaId': areaId ?? '',
         'areaName': areaName ?? '',
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp': Timestamp.now(),
         'extra': extra ?? {},
       });
     } catch (e) {
