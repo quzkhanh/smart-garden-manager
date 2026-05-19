@@ -417,15 +417,10 @@ class AreaDetailScreen extends StatelessWidget {
                       flex: 1,
                       child: SingleChildScrollView(
                         child: Column(
-                          children: [
-                            if (area.isSoilRenovation) ...[
-                              content[0], // Renovation banner
-                              const SizedBox(height: 16),
-                            ],
-                            content[area.isSoilRenovation ? 1 : 0], // Mode
-                            const SizedBox(height: 16),
-                            content[area.isSoilRenovation ? 2 : 1], // Sensor data
-                          ],
+                          children: content.asMap().entries
+                              .where((e) => [0, 1, 2, 3].contains(_getContentRole(e.key, area.isSoilRenovation, area.isOnline)))
+                              .expand((e) => [e.value, const SizedBox(height: 16)])
+                              .toList(),
                         ),
                       ),
                     ),
@@ -434,11 +429,10 @@ class AreaDetailScreen extends StatelessWidget {
                       flex: 2,
                       child: SingleChildScrollView(
                         child: Column(
-                          children: [
-                            content[area.isSoilRenovation ? 3 : 2], // Chart
-                            const SizedBox(height: 16),
-                            content[area.isSoilRenovation ? 4 : 3], // Device control
-                          ],
+                          children: content.asMap().entries
+                              .where((e) => [4, 5, 6].contains(_getContentRole(e.key, area.isSoilRenovation, area.isOnline)))
+                              .expand((e) => [e.value, const SizedBox(height: 16)])
+                              .toList(),
                         ),
                       ),
                     ),
@@ -453,6 +447,26 @@ class AreaDetailScreen extends StatelessWidget {
               ),
       ),
     );
+  }
+
+  /// Map content index to a role for wide layout distribution.
+  /// Roles: 0=renovation banner, 1=offline banner, 2=mode toggle, 3=sensor data,
+  ///        4=chart, 5=notes, 6=device control
+  int _getContentRole(int index, bool isSoilRenovation, bool isOnline) {
+    int i = 0;
+    if (isSoilRenovation) {
+      if (index == i) return 0; // renovation banner
+      i++;
+    }
+    if (!isOnline) {
+      if (index == i) return 1; // offline banner
+      i++;
+    }
+    // Fixed order: mode(2), sensor(3), chart(4), notes(5), device(6)
+    final fixedRoles = [2, 3, 4, 5, 6];
+    final offset = index - i;
+    if (offset >= 0 && offset < fixedRoles.length) return fixedRoles[offset];
+    return -1;
   }
 
   void _showTimerDialog(

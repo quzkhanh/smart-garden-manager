@@ -380,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Mỗi khu vực sẽ có 3 thiết bị cố định: Máy bơm, Quạt, Đèn.',
+                'Mỗi khu vực sẽ có 3 thiết bị cố định: Máy bơm, Quạt, Phun sương.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.grey,
                   fontStyle: FontStyle.italic,

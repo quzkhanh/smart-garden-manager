@@ -122,6 +122,25 @@ class GardenProvider extends ChangeNotifier {
           final data = doc.data();
           final area = Area.fromMap(doc.id, data);
           updatedAreas.add(area);
+
+          // Auto-cleanup: remove orphaned schedules/rules from Firestore
+          // (e.g. schedules tied to removed light devices)
+          final rawSchedules = (data['schedules'] as List? ?? []);
+          final rawRules = (data['rules'] as List? ?? []);
+          if (rawSchedules.length != area.schedules.length ||
+              rawRules.length != area.rules.length) {
+            _firestore
+                .collection('users')
+                .doc(_uid)
+                .collection('areas')
+                .doc(doc.id)
+                .update({
+              'schedules': area.schedules.map((s) => s.toMap()).toList(),
+              'rules': area.rules.map((r) => r.toMap()).toList(),
+            }).catchError((e) {
+              debugPrint('Error cleaning orphaned data for ${doc.id}: $e');
+            });
+          }
         } catch (e) {
           debugPrint('Error parsing area ${doc.id}: $e');
         }

@@ -411,6 +411,7 @@ class _AreaConfigScreenState extends State<AreaConfigScreen> {
               Column(
                 children: area.rules.map((rule) => AppCard(
                   margin: const EdgeInsets.only(bottom: 10),
+                  onTap: () => _showRuleDialog(context, garden, rule),
                   child: Row(
                     children: [
                       Container(

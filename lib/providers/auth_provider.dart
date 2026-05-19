@@ -28,7 +28,11 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool _disposed = false;
 
   AuthState get state => _state;
-  String get phoneNumber => _phoneNumber;
+  String get phoneNumber {
+    if (_phoneNumber.isNotEmpty) return _phoneNumber;
+    // Fallback to Firebase Auth user's phone number (persisted across restarts)
+    return _auth.currentUser?.phoneNumber ?? '';
+  }
   String get otp => _otp;
   String get qrSessionId => _qrSessionId;
   bool get isLoading => _isLoading;
