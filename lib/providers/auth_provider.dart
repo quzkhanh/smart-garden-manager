@@ -93,12 +93,27 @@ class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
       final normalized = _normalizePhone(phone);
       final doc = await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).get();
       if (doc.exists) {
-        _isAdmin = doc.data()?['role'] == 'admin';
+        if (doc.data()?['role'] == 'admin') {
+          _isAdmin = true;
+        } else {
+          // Tự động cấp quyền admin cho số điện thoại đầu tiên nếu database chưa có admin nào
+          final admins = await FirebaseFirestore.instance.collection('allowed_phones').where('role', isEqualTo: 'admin').limit(1).get();
+          if (admins.docs.isEmpty) {
+            await FirebaseFirestore.instance.collection('allowed_phones').doc(normalized).update({'role': 'admin'});
+            _isAdmin = true;
+          } else {
+            _isAdmin = false;
+          }
+        }
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error checking admin status: $e');
     }
+  }
+
+  void refreshAdminStatus() {
+    _checkAdminStatus();
   }
 
   void _startHeartbeat() {
