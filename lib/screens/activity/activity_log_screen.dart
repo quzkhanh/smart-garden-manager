@@ -78,8 +78,9 @@ class ActivityLogScreen extends StatelessWidget {
                 for (final doc in docs) {
                   final data = doc.data() as Map<String, dynamic>;
                   final timestamp = data['timestamp'] as Timestamp?;
-                  if (timestamp == null) continue;
-                  final dateKey = DateFormat('dd/MM/yyyy').format(timestamp.toDate());
+                  // Fallback to now() for local pending writes (timestamp is null temporarily)
+                  final date = timestamp?.toDate() ?? DateTime.now();
+                  final dateKey = DateFormat('dd/MM/yyyy').format(date);
                   grouped.putIfAbsent(dateKey, () => []);
                   grouped[dateKey]!.add(doc);
                 }
@@ -131,9 +132,8 @@ class ActivityLogScreen extends StatelessWidget {
                           final description = data['description'] as String? ?? '';
                           final actorName = data['actorName'] as String? ?? 'Hệ thống';
                           final timestamp = data['timestamp'] as Timestamp?;
-                          final timeStr = timestamp != null
-                              ? DateFormat('HH:mm').format(timestamp.toDate())
-                              : '--:--';
+                          final date = timestamp?.toDate() ?? DateTime.now();
+                          final timeStr = DateFormat('HH:mm').format(date);
 
                           return AppCard(
                             child: Row(
